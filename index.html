@@ -12,11 +12,12 @@
         .admin-mode input { background: #1f2937; border: 1px solid #4b5563; padding: 4px; border-radius: 6px; width: 100%; color: white; margin: 4px 0; }
         ::-webkit-scrollbar { display: none; }
         .glass { background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(15px); }
+        .modal-glass { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); }
     </style>
 </head>
-<body class="bg-black text-gray-100 font-sans pb-24">
+<body class="bg-black text-gray-100 font-sans pb-24 relative">
 
-    <header class="p-6 glass sticky top-0 z-50 border-b border-gray-800">
+    <header class="p-6 glass sticky top-0 z-40 border-b border-gray-800">
         <div class="flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-black italic tracking-tighter">JS <span class="text-orange-500">RUNNING CLUB</span></h1>
@@ -25,11 +26,52 @@
                     <span>Coach: <span class="text-orange-400">J. Santiago</span></span>
                 </div>
             </div>
-            <button onclick="requestAdminAccess()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-gray-500 hover:text-orange-500 transition">
-                <i class="fas fa-lock"></i>
-            </button>
+            <div class="flex gap-3">
+                <button onclick="toggleGlossary()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-blue-400 hover:text-blue-300 transition">
+                    <i class="fas fa-book"></i>
+                </button>
+                <button onclick="requestAdminAccess()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-gray-500 hover:text-orange-500 transition">
+                    <i class="fas fa-lock"></i>
+                </button>
+            </div>
         </div>
     </header>
+
+    <div id="glossary-modal" class="hidden fixed inset-0 z-50 modal-glass flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative">
+            <button onclick="toggleGlossary()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+            <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
+            
+            <div class="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
+                <div>
+                    <span class="font-bold text-white">Caco (X:Y):</span> 
+                    <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. El primer número son los minutos corriendo, el segundo los minutos caminando. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p>
+                </div>
+                <div>
+                    <span class="font-bold text-white">Regenerativo / Suave:</span> 
+                    <p class="text-gray-400 text-xs mt-1">Trote muy lento a ritmo conversacional. Sirve para recuperar las piernas y sumar volumen sin fatiga.</p>
+                </div>
+                <div>
+                    <span class="font-bold text-white">Intervalos:</span> 
+                    <p class="text-gray-400 text-xs mt-1">Segmentos de carrera más rápida alternados con periodos de recuperación (caminata o trote súper suave).</p>
+                </div>
+                <div>
+                    <span class="font-bold text-white">Tempo:</span> 
+                    <p class="text-gray-400 text-xs mt-1">Ritmo de carrera constante. Es un paso "cómodamente duro" donde te cuesta hablar en oraciones completas.</p>
+                </div>
+                <div>
+                    <span class="font-bold text-white">Larga / Long Run:</span> 
+                    <p class="text-gray-400 text-xs mt-1">El entrenamiento más importante. No importa la velocidad, el objetivo es acostumbrar al cuerpo a estar tiempo en movimiento.</p>
+                </div>
+                <div>
+                    <span class="font-bold text-white">Taper (Afinar):</span> 
+                    <p class="text-gray-400 text-xs mt-1">Reducción del volumen de entrenamiento los días antes de la carrera para llegar con las piernas frescas al 100%.</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <main class="p-4 max-w-md mx-auto space-y-6">
 
@@ -144,11 +186,16 @@
         let selectedTask = "";
         let adminMode = false;
         
-        // Usamos una nueva llave en localStorage para asegurar que cargue el plan de 8 semanas limpio
-        let activePlan = JSON.parse(localStorage.getItem('js_plan_v5')) || JSON.parse(JSON.stringify(defaultPlan));
+        let activePlan = JSON.parse(localStorage.getItem('js_plan_v6')) || JSON.parse(JSON.stringify(defaultPlan));
 
         function savePlan() { 
-            localStorage.setItem('js_plan_v5', JSON.stringify(activePlan)); 
+            localStorage.setItem('js_plan_v6', JSON.stringify(activePlan)); 
+        }
+
+        // Función para mostrar/ocultar el glosario
+        function toggleGlossary() {
+            const modal = document.getElementById('glossary-modal');
+            modal.classList.toggle('hidden');
         }
 
         function requestAdminAccess() {
