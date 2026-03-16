@@ -135,181 +135,186 @@
     </main>
 
     <script>
-        const MASTER_PASSWORD = "JS2026";
+    const MASTER_PASSWORD = "JS2026";
+    
+    const defaultPlan = {
+        1: [
+            { dia: "Lunes", tarea: "Fuerza A", detalle: "Sentadilla/Puente (2x15)" },
+            { dia: "Martes", tarea: "2.5 mi Carrera", detalle: "Caco 3:1 Suave" },
+            { dia: "Viernes", tarea: "2 mi Intervalos", detalle: "Caco 2:1 Ritmo 14:00" },
+            { dia: "Sábado", tarea: "3 mi Larga", detalle: "Caco 4:1 Paso Libre" }
+        ],
+        2: [
+            { dia: "Lunes", tarea: "Fuerza B", detalle: "Zancadas/Core (2x15)" },
+            { dia: "Martes", tarea: "2.5 mi Carrera", detalle: "Caco 4:1 Controlado" },
+            { dia: "Viernes", tarea: "2.5 mi Intervalos", detalle: "Caco 3:1 Ritmo 13:45" },
+            { dia: "Sábado", tarea: "3.5 mi Larga", detalle: "Caco 4:1 Resistencia" }
+        ],
+        3: [
+            { dia: "Lunes", tarea: "Fuerza A", detalle: "Aumentar a 3 series" },
+            { dia: "Martes", tarea: "3 mi Carrera", detalle: "Caco 5:1 Aeróbico" },
+            { dia: "Viernes", tarea: "2.5 mi Intervalos", detalle: "Caco 4:1 Ritmo 13:30" },
+            { dia: "Sábado", tarea: "4 mi Larga", detalle: "Caco 5:1 (Hito)" }
+        ],
+        4: [
+            { dia: "Martes", tarea: "2 mi Suave", detalle: "Descarga pre-test" },
+            { dia: "Sábado", tarea: "TEST 5K (3.1 mi)", detalle: "Sin parar o Caco 10:1" }
+        ],
+        5: [
+            { dia: "Martes", tarea: "2 mi Regenerativo", detalle: "Semana de recuperación" },
+            { dia: "Sábado", tarea: "3 mi Suave", detalle: "Trote muy ligero" }
+        ],
+        6: [
+            { dia: "Martes", tarea: "3.5 mi Carrera", detalle: "Caco 8:1" },
+            { dia: "Viernes", tarea: "3 mi Tempo", detalle: "Caco 5:1 Progresivo" },
+            { dia: "Sábado", tarea: "5 mi Larga", detalle: "Base Mental" }
+        ],
+        7: [
+            { dia: "Martes", tarea: "4 mi Carrera", detalle: "Caco 10:1" },
+            { dia: "Viernes", tarea: "3 mi Ritmo", detalle: "2mi trote / 1mi rápido" },
+            { dia: "Sábado", tarea: "5.5 mi Larga", detalle: "Pico de volumen" }
+        ],
+        8: [
+            { dia: "Martes", tarea: "2.5 mi Suave", detalle: "Taper (Afinar)" },
+            { dia: "Jueves", tarea: "1.5 mi Movilidad", detalle: "Activación final" },
+            { dia: "Sábado", tarea: "META 10K (6.2 mi)", detalle: "¡Día de Gloria, Camila!" }
+        ]
+    };
+
+    let currentWeek = 1;
+    let adminMode = false;
+    let activePlan = JSON.parse(localStorage.getItem('js_plan_v8')) || JSON.parse(JSON.stringify(defaultPlan));
+
+    function savePlan() { localStorage.setItem('js_plan_v8', JSON.stringify(activePlan)); }
+    
+    // GUARDAR NOTAS POR SEMANA DINÁMICAMENTE
+    function saveNotes() {
+        const notes = document.getElementById('coach-notes').value;
+        localStorage.setItem(`notes-w${currentWeek}`, notes);
+    }
+
+    function toggleGlossary() { document.getElementById('glossary-modal').classList.toggle('hidden'); }
+    function closeCelebration() { document.getElementById('celebration-modal').classList.add('hidden'); }
+
+    function requestAdminAccess() {
+        const pass = prompt("Password Coach Santiago:");
+        if (pass === MASTER_PASSWORD) {
+            adminMode = !adminMode;
+            document.getElementById('admin-panel').classList.toggle('hidden');
+            loadWeek(currentWeek);
+        } else if (pass !== null) alert("Acceso Denegado.");
+    }
+
+    function fullReset() {
+        if(confirm("¿Seguro que deseas resetear al plan maestro original?")) {
+            activePlan = JSON.parse(JSON.stringify(defaultPlan));
+            savePlan();
+            loadWeek(1);
+        }
+    }
+
+    function loadWeek(w, ev = null) {
+        currentWeek = w;
+        const list = document.getElementById('training-list');
+        list.innerHTML = '';
         
-        // PROGRAMACIÓN DE 8 SEMANAS COMPLETA
-        const defaultPlan = {
-            1: [
-                { dia: "Lunes", tarea: "Fuerza A", detalle: "Sentadilla/Puente (2x15)" },
-                { dia: "Martes", tarea: "2.5 mi Carrera", detalle: "Caco 3:1 Suave" },
-                { dia: "Viernes", tarea: "2 mi Intervalos", detalle: "Caco 2:1 Ritmo 14:00" },
-                { dia: "Sábado", tarea: "3 mi Larga", detalle: "Caco 4:1 Paso Libre" }
-            ],
-            2: [
-                { dia: "Lunes", tarea: "Fuerza B", detalle: "Zancadas/Core (2x15)" },
-                { dia: "Martes", tarea: "2.5 mi Carrera", detalle: "Caco 4:1 Controlado" },
-                { dia: "Viernes", tarea: "2.5 mi Intervalos", detalle: "Caco 3:1 Ritmo 13:45" },
-                { dia: "Sábado", tarea: "3.5 mi Larga", detalle: "Caco 4:1 Resistencia" }
-            ],
-            3: [
-                { dia: "Lunes", tarea: "Fuerza A", detalle: "Aumentar a 3 series" },
-                { dia: "Martes", tarea: "3 mi Carrera", detalle: "Caco 5:1 Aeróbico" },
-                { dia: "Viernes", tarea: "2.5 mi Intervalos", detalle: "Caco 4:1 Ritmo 13:30" },
-                { dia: "Sábado", tarea: "4 mi Larga", detalle: "Caco 5:1 (Hito)" }
-            ],
-            4: [
-                { dia: "Martes", tarea: "2 mi Suave", detalle: "Descarga pre-test" },
-                { dia: "Sábado", tarea: "TEST 5K (3.1 mi)", detalle: "Sin parar o Caco 10:1" }
-            ],
-            5: [
-                { dia: "Martes", tarea: "2 mi Regenerativo", detalle: "Semana de recuperación" },
-                { dia: "Sábado", tarea: "3 mi Suave", detalle: "Trote muy ligero" }
-            ],
-            6: [
-                { dia: "Martes", tarea: "3.5 mi Carrera", detalle: "Caco 8:1" },
-                { dia: "Viernes", tarea: "3 mi Tempo", detalle: "Caco 5:1 Progresivo" },
-                { dia: "Sábado", tarea: "5 mi Larga", detalle: "Base Mental" }
-            ],
-            7: [
-                { dia: "Martes", tarea: "4 mi Carrera", detalle: "Caco 10:1" },
-                { dia: "Viernes", tarea: "3 mi Ritmo", detalle: "2mi trote / 1mi rápido" },
-                { dia: "Sábado", tarea: "5.5 mi Larga", detalle: "Pico de volumen" }
-            ],
-            8: [
-                { dia: "Martes", tarea: "2.5 mi Suave", detalle: "Taper (Afinar)" },
-                { dia: "Jueves", tarea: "1.5 mi Movilidad", detalle: "Activación final" },
-                { dia: "Sábado", tarea: "META 10K (6.2 mi)", detalle: "¡Día de Gloria, Camila!" }
-            ]
-        };
-
-        let currentWeek = 1;
-        let selectedTask = "";
-        let adminMode = false;
-        
-        let activePlan = JSON.parse(localStorage.getItem('js_plan_v6')) || JSON.parse(JSON.stringify(defaultPlan));
-
-        function savePlan() { 
-            localStorage.setItem('js_plan_v6', JSON.stringify(activePlan)); 
-        }
-
-        // Función para mostrar/ocultar el glosario
-        function toggleGlossary() {
-            const modal = document.getElementById('glossary-modal');
-            modal.classList.toggle('hidden');
-        }
-
-        function requestAdminAccess() {
-            const pass = prompt("Password Coach Santiago:");
-            if (pass === MASTER_PASSWORD) {
-                adminMode = !adminMode;
-                document.getElementById('admin-panel').classList.toggle('hidden');
-                loadWeek(currentWeek);
-            } else if (pass !== null) {
-                alert("Acceso Denegado.");
-            }
-        }
-
-        function fullReset() {
-            if(confirm("¿Seguro que deseas resetear al plan maestro original? Se borrarán las ediciones manuales.")) {
-                activePlan = JSON.parse(JSON.stringify(defaultPlan));
-                savePlan();
-                loadWeek(1);
-                alert("Plan reseteado.");
-            }
-        }
-
-        function loadWeek(w, ev = null) {
-            currentWeek = w;
-            const list = document.getElementById('training-list');
-            list.innerHTML = '';
-            (activePlan[w] || []).forEach((item, index) => {
-                const id = `w${w}d${index}`;
-                const isChecked = localStorage.getItem(id) === 'true';
-                list.innerHTML += `
-                    <div onclick="selectTask('${item.tarea}', this)" class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 cursor-pointer transition-all ${isChecked ? 'completed' : ''}">
-                        <div class="flex-1 mr-4">
-                            ${adminMode ? 
-                                `<input type="text" value="${item.dia}" onchange="editTask(${index}, 'dia', this.value)" class="text-orange-500 text-[10px] font-black uppercase">
-                                 <input type="text" value="${item.tarea}" onchange="editTask(${index}, 'tarea', this.value)" class="text-lg font-black block bg-transparent">
-                                 <input type="text" value="${item.detalle}" onchange="editTask(${index}, 'detalle', this.value)" class="text-xs text-gray-500 block bg-transparent">
-                                 <button onclick="deleteTask(${index})" class="text-red-500 text-[9px] mt-2 font-bold uppercase">[Eliminar]</button>` 
-                                : 
-                                `<span class="text-[10px] text-orange-500 font-black italic uppercase">${item.dia}</span>
-                                 <h3 class="text-lg font-black">${item.tarea}</h3>
-                                 <p class="text-xs text-gray-400">${item.detalle}</p>`
-                            }
-                        </div>
-                        ${!adminMode ? `<input type="checkbox" onchange="toggleTask('${id}', this, event)" ${isChecked ? 'checked' : ''} class="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700">` : ''}
+        // Cargar rutinas de la semana
+        (activePlan[w] || []).forEach((item, index) => {
+            const id = `w${w}d${index}`;
+            const isChecked = localStorage.getItem(id) === 'true';
+            list.innerHTML += `
+                <div class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 transition-all ${isChecked ? 'completed' : ''}">
+                    <div class="flex-1 mr-4">
+                        ${adminMode ? 
+                            `<input type="text" value="${item.dia}" onchange="editTask(${index}, 'dia', this.value)" class="text-orange-500 text-[10px] font-black uppercase">
+                             <input type="text" value="${item.tarea}" onchange="editTask(${index}, 'tarea', this.value)" class="text-lg font-black block bg-transparent">
+                             <input type="text" value="${item.detalle}" onchange="editTask(${index}, 'detalle', this.value)" class="text-xs text-gray-500 block bg-transparent">
+                             <button onclick="deleteTask(${index})" class="text-red-500 text-[9px] mt-2 font-bold uppercase">[Eliminar]</button>` 
+                            : 
+                            `<span class="text-[10px] text-orange-500 font-black italic uppercase">${item.dia}</span>
+                             <h3 class="text-lg font-black">${item.tarea}</h3>
+                             <p class="text-xs text-gray-400">${item.detalle}</p>`
+                        }
                     </div>
-                `;
+                    ${!adminMode ? `<input type="checkbox" onchange="toggleTask('${id}', this, event)" ${isChecked ? 'checked' : ''} class="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700">` : ''}
+                </div>
+            `;
+        });
+
+        // Cargar las notas específicas de esta semana
+        document.getElementById('coach-notes').value = localStorage.getItem(`notes-w${w}`) || "";
+
+        // UI Tabs
+        document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('tab-active'));
+        if(ev && ev.target) ev.target.classList.add('tab-active');
+        else document.querySelectorAll('.week-tab')[w-1].classList.add('tab-active');
+    }
+
+    function editTask(index, field, value) { activePlan[currentWeek][index][field] = value; savePlan(); }
+    function addNewTask() {
+        if(!activePlan[currentWeek]) activePlan[currentWeek] = [];
+        activePlan[currentWeek].push({ dia: "DÍA NUEVO", tarea: "EJERCICIO", detalle: "Distancia/Repeticiones" });
+        savePlan();
+        loadWeek(currentWeek);
+    }
+    function deleteTask(index) { activePlan[currentWeek].splice(index, 1); savePlan(); loadWeek(currentWeek); }
+
+    function toggleTask(id, el, e) {
+        e.stopPropagation();
+        localStorage.setItem(id, el.checked);
+        el.parentElement.classList.toggle('completed');
+
+        // VERIFICACIÓN SEMANA 8
+        if (currentWeek === 8 && el.checked) {
+            let allCompleted = true;
+            (activePlan[8] || []).forEach((_, idx) => {
+                if (localStorage.getItem(`w8d${idx}`) !== 'true') allCompleted = false;
             });
-            document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('tab-active'));
-            if(ev && ev.target) ev.target.classList.add('tab-active');
-            else document.querySelectorAll('.week-tab')[w-1].classList.add('tab-active');
+            if (allCompleted) document.getElementById('celebration-modal').classList.remove('hidden');
         }
+    }
 
-        function editTask(index, field, value) {
-            activePlan[currentWeek][index][field] = value;
-            savePlan();
-        }
+    // NUEVO REPORTE SEMANAL
+    function sendToCoach() {
+        // Guardar las notas antes de enviar
+        saveNotes();
+        const notes = document.getElementById('coach-notes').value || "Sin comentarios adicionales.";
+        
+        let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n`;
+        report += `*Atleta:* Camila Sosa\n`;
+        report += `*Semana:* ${currentWeek}\n\n`;
+        report += `*ESTADO DE RUTINAS:*\n`;
 
-        function addNewTask() {
-            if(!activePlan[currentWeek]) activePlan[currentWeek] = [];
-            activePlan[currentWeek].push({ dia: "DÍA NUEVO", tarea: "EJERCICIO", detalle: "Distancia/Repeticiones" });
-            savePlan();
-            loadWeek(currentWeek);
-        }
+        // Leer todos los ejercicios de la semana actual
+        (activePlan[currentWeek] || []).forEach((item, index) => {
+            const isChecked = localStorage.getItem(`w${currentWeek}d${index}`) === 'true';
+            const statusIcon = isChecked ? '✅' : '❌';
+            report += `${statusIcon} ${item.dia}: ${item.tarea}\n`;
+        });
 
-        function deleteTask(index) {
-            activePlan[currentWeek].splice(index, 1);
-            savePlan();
-            loadWeek(currentWeek);
-        }
+        report += `\n📝 *NOTAS DE LA ATLETA:*\n${notes}\n\n`;
+        report += `¡Seguimos sumando millas! 🔥`;
+        
+        window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
+    }
 
-        function selectTask(name, el) {
-            if(adminMode) return;
-            selectedTask = name;
-            document.querySelectorAll('#training-list > div').forEach(d => d.classList.remove('ring-2', 'ring-orange-500'));
-            el.classList.add('ring-2', 'ring-orange-500');
-        }
-
-        function toggleTask(id, el, e) {
-            e.stopPropagation();
-            localStorage.setItem(id, el.checked);
-            el.parentElement.classList.toggle('completed');
-        }
-
-        function sendToCoach() {
-            const time = document.getElementById('display').innerText;
-            const dist = document.getElementById('garmin-dist').value || "--";
-            const pace = document.getElementById('garmin-pace').value || "--";
-            const notes = document.getElementById('coach-notes').value || "Todo bien.";
-
-            const msg = `🏃‍♀️ *REPORT: JS RUNNING CLUB*\n\n` +
-                        `*Atleta:* Camila Sosa\n` +
-                        `*Semana:* ${currentWeek}\n` +
-                        `*Entreno:* ${selectedTask || "Sesión General"}\n\n` +
-                        `⏱️ *Tiempo App:* ${time}\n` +
-                        `⌚ *Garmin Dist:* ${dist} mi\n` +
-                        `⚡ *Garmin Pace:* ${pace} /mi\n\n` +
-                        `📝 *Notas:* ${notes}`;
-            
-            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`);
-        }
-
-        let timer, isRunning = false, seconds = 0;
-        function startStop() {
-            if (isRunning) clearInterval(timer);
-            else timer = setInterval(() => {
-                seconds++;
-                let h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60), s=seconds%60;
-                document.getElementById('display').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-            }, 1000);
-            isRunning = !isRunning;
-            document.getElementById('startBtn').innerHTML = isRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
-        }
-        function resetTimer() { clearInterval(timer); isRunning = false; seconds = 0; document.getElementById('display').innerText = "00:00:00"; document.getElementById('startBtn').innerHTML = '<i class="fas fa-play text-white"></i>';}
-        window.onload = () => loadWeek(1);
-    </script>
+    let timer, isRunning = false, seconds = 0;
+    function startStop() {
+        if (isRunning) clearInterval(timer);
+        else timer = setInterval(() => {
+            seconds++;
+            let h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60), s=seconds%60;
+            document.getElementById('display').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }, 1000);
+        isRunning = !isRunning;
+        document.getElementById('startBtn').innerHTML = isRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+    }
+    function resetTimer() { clearInterval(timer); isRunning = false; seconds = 0; document.getElementById('display').innerText = "00:00:00"; document.getElementById('startBtn').innerHTML = '<i class="fas fa-play text-white"></i>';}
+    
+    // Event Listener para guardar notas automáticamente al escribir
+    document.getElementById('coach-notes').addEventListener('input', saveNotes);
+    
+    window.onload = () => loadWeek(1);
+</script>
 </body>
 </html>
