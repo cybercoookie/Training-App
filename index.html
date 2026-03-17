@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Running Club - Login</title>
+    <title>JS Running Club - Elite Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -12,6 +12,8 @@
         ::-webkit-scrollbar { display: none; }
         .glass { background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(15px); }
         .modal-glass { background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px); }
+        .saving-pulse { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -67,16 +69,20 @@
         </header>
 
         <main class="p-4 max-w-md mx-auto space-y-6">
-            
             <div id="cloud-loading" class="text-center py-10 text-orange-500 font-bold animate-pulse hidden">
                 <i class="fas fa-cloud-download-alt text-3xl mb-2"></i><br>
-                Sincronizando con Supabase...
+                Sincronizando con la nube...
             </div>
 
             <div id="entrenamiento-container" class="space-y-6 hidden">
-                <div class="bg-gray-900 border border-orange-500/30 p-3 rounded-xl text-center">
-                    <span class="text-[10px] text-orange-500 font-bold uppercase tracking-widest">Plan Actual</span>
-                    <h2 id="plan-title" class="text-white font-black italic">Cargando...</h2>
+                <div class="bg-gray-900 border border-orange-500/30 p-3 rounded-xl flex justify-between items-center">
+                    <div>
+                        <span class="text-[10px] text-orange-500 font-bold uppercase tracking-widest">Plan Actual</span>
+                        <h2 id="plan-title" class="text-white font-black italic">Cargando...</h2>
+                    </div>
+                    <span id="sync-status" class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                        <i class="fas fa-check-circle text-green-500"></i> Sincronizado
+                    </span>
                 </div>
 
                 <div class="flex overflow-x-auto gap-6 border-b border-gray-900 pb-3 no-scrollbar">
@@ -103,17 +109,19 @@
             <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
             <div class="space-y-4 text-sm pr-2">
                 <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Caminar-Correr.</p></div>
+                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Tiempo en pies.</p></div>
             </div>
         </div>
     </div>
 
     <script>
-        // CONFIGURACIÓN DE SUPABASE
+        // CONFIGURACIÓN SUPABASE
         const supabaseUrl = 'https://ihwzflblfeayyjuaizrx.supabase.co';
         const supabaseKey = 'sb_publishable_jRv8RmKitJkUsSRTmLto9A_nJtuQTI-';
         const supabaseClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
         let activePlanCloud = {}; 
+        let registrosCloud = {}; // Aquí guardaremos lo que está completado en la BD
         let currentWeek = 1;
 
         // AUTENTICACIÓN
@@ -155,28 +163,17 @@
             checkSession();
         }
 
-        if(supabaseClient) {
-            supabaseClient.auth.onAuthStateChange(() => checkSession());
-        }
+        if(supabaseClient) supabaseClient.auth.onAuthStateChange(() => checkSession());
 
-        // ==========================================
-        // LA MAGIA: DESCARGAR DE LA BASE DE DATOS
-        // ==========================================
+        // DESCARGA DESDE LA NUBE
         async function descargarPlanDeLaNube(userId) {
             document.getElementById('cloud-loading').classList.remove('hidden');
             document.getElementById('entrenamiento-container').classList.add('hidden');
 
-            // 1. Obtener nombre del perfil
             const { data: perfil } = await supabaseClient.from('perfiles').select('nombre').eq('id', userId).single();
             if(perfil) document.getElementById('user-display-name').innerText = perfil.nombre;
 
-            // 2. Buscar el plan activo del atleta
-            const { data: planActivo, error: planError } = await supabaseClient
-                .from('planes_entrenamiento')
-                .select('id, titulo')
-                .eq('atleta_id', userId)
-                .eq('estado', 'activo')
-                .single();
+            const { data: planActivo, error: planError } = await supabaseClient.from('planes_entrenamiento').select('id, titulo').eq('atleta_id', userId).eq('estado', 'activo').single();
 
             if (planError || !planActivo) {
                 document.getElementById('cloud-loading').innerHTML = "No tienes un plan activo asignado.";
@@ -185,21 +182,27 @@
 
             document.getElementById('plan-title').innerText = planActivo.titulo;
 
-            // 3. Traer todas las rutinas de ese plan
-            const { data: rutinas } = await supabaseClient
-                .from('rutinas_programadas')
-                .select('*')
-                .eq('plan_id', planActivo.id)
-                .order('id', { ascending: true }); // Mantiene el orden de inserción
+            // Traer rutinas programadas
+            const { data: rutinas } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planActivo.id).order('id', { ascending: true });
+            
+            // NUEVO: Traer el progreso (registros_ejecucion) de este atleta
+            const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, id');
+            
+            // Limpiar y poblar el diccionario de registros
+            registrosCloud = {};
+            if(ejecuciones) {
+                ejecuciones.forEach(ej => {
+                    registrosCloud[ej.rutina_id] = { completado: ej.completado, record_id: ej.id };
+                });
+            }
 
-            // 4. Transformar los datos de Supabase al formato que entiende tu App web
             let planFormateado = {};
             for(let i=1; i<=8; i++) planFormateado[i] = [];
 
             if(rutinas) {
                 rutinas.forEach(r => {
                     planFormateado[r.semana].push({
-                        id_db: r.id,
+                        id_db: r.id, // UID real de PostgreSQL
                         dia: r.dia_semana,
                         tarea: r.titulo,
                         detalle: r.detalle
@@ -208,22 +211,20 @@
             }
 
             activePlanCloud = planFormateado;
-            
             document.getElementById('cloud-loading').classList.add('hidden');
             document.getElementById('entrenamiento-container').classList.remove('hidden');
-            
             loadWeek(1);
         }
 
-        // DIBUJAR LA PANTALLA
+        // DIBUJAR PANTALLA
         function loadWeek(w, ev = null) {
             currentWeek = w;
             const list = document.getElementById('training-list');
             list.innerHTML = '';
             
-            (activePlanCloud[w] || []).forEach((item, index) => {
-                const idLocal = `w${w}d${index}`; // Temporalmente usamos LocalStorage para los checkmarks
-                const isChecked = localStorage.getItem(idLocal) === 'true';
+            (activePlanCloud[w] || []).forEach((item) => {
+                // Leer estado desde la base de datos (registrosCloud)
+                const isChecked = registrosCloud[item.id_db] ? registrosCloud[item.id_db].completado : false;
                 
                 list.innerHTML += `
                     <div class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 transition-all ${isChecked ? 'completed' : ''}">
@@ -232,28 +233,63 @@
                             <h3 class="text-lg font-black">${item.tarea}</h3>
                             <p class="text-xs text-gray-400">${item.detalle}</p>
                         </div>
-                        <input type="checkbox" onchange="toggleTask('${idLocal}', this, event)" ${isChecked ? 'checked' : ''} class="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer">
+                        <input type="checkbox" onchange="toggleTaskDB('${item.id_db}', this)" ${isChecked ? 'checked' : ''} class="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer">
                     </div>
                 `;
             });
 
             document.getElementById('coach-notes').value = localStorage.getItem(`notes-w${w}`) || "";
-
             document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('tab-active'));
             const tabs = document.querySelectorAll('.week-tab');
             if (ev && ev.target) ev.target.classList.add('tab-active');
             else if (tabs[w-1]) tabs[w-1].classList.add('tab-active');
         }
 
-        function toggleTask(id, el, e) {
-            e.stopPropagation();
-            localStorage.setItem(id, el.checked);
-            el.parentElement.classList.toggle('completed');
+        // NUEVO: ESCRIBIR DIRECTO A SUPABASE
+        async function toggleTaskDB(rutinaId, checkboxElement) {
+            const isChecked = checkboxElement.checked;
+            checkboxElement.parentElement.classList.toggle('completed', isChecked);
+            
+            // Indicador de "Guardando..." en la UI
+            const statusIndicator = document.getElementById('sync-status');
+            statusIndicator.innerHTML = '<i class="fas fa-cloud-upload-alt text-orange-500 saving-pulse"></i> Guardando...';
+
+            try {
+                // Verificar si ya existe un registro previo para esta rutina
+                const registroPrevio = registrosCloud[rutinaId];
+
+                if (registroPrevio && registroPrevio.record_id) {
+                    // Si existe, lo actualizamos
+                    await supabaseClient.from('registros_ejecucion')
+                        .update({ completado: isChecked })
+                        .eq('id', registroPrevio.record_id);
+                    registrosCloud[rutinaId].completado = isChecked;
+                } else {
+                    // Si no existe, lo creamos nuevo
+                    const { data } = await supabaseClient.from('registros_ejecucion')
+                        .insert([{ rutina_id: rutinaId, completado: isChecked }])
+                        .select()
+                        .single();
+                    
+                    if(data) {
+                        registrosCloud[rutinaId] = { completado: isChecked, record_id: data.id };
+                    }
+                }
+                
+                // Éxito: Volver a mostrar "Sincronizado"
+                setTimeout(() => {
+                    statusIndicator.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> Sincronizado';
+                }, 500);
+
+            } catch (error) {
+                console.error("Error guardando progreso:", error);
+                statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500"></i> Error';
+            }
         }
 
         function sendToCoach() {
             const notes = document.getElementById('coach-notes').value || "Sin comentarios.";
-            localStorage.setItem(`notes-w${currentWeek}`, notes);
+            localStorage.setItem(`notes-w${currentWeek}`, notes); // Las notas por ahora las dejamos locales para el MVP
             
             let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n*Semana:* ${currentWeek}\n*NOTAS:*\n${notes}\n\n¡Seguimos! 🔥`;
             window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
