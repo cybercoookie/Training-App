@@ -44,7 +44,6 @@
                 <i class="fas fa-times text-xl"></i>
             </button>
             <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
-            
             <div class="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
                 <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p></div>
                 <div><span class="font-bold text-white">Regenerativo:</span> <p class="text-gray-400 text-xs mt-1">Trote muy lento a ritmo conversacional. Sirve para recuperar.</p></div>
@@ -132,27 +131,22 @@
     </main>
 
     <script>
-        // 1. Inicialización segura de Supabase
-        let supabase = null;
-        try {
-            if (window.supabase) {
-                const supabaseUrl = 'https://ihwzflblfeayyjuaizrx.supabase.co';
-                const supabaseKey = 'sb_publishable_jRv8RmKitJkUsSRTmLto9A_nJtuQTI-';
-                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-                probarConexion();
-            } else {
-                console.warn("Supabase no cargó desde el CDN. La app funcionará localmente.");
-            }
-        } catch (err) {
-            console.error("Error al iniciar Supabase:", err);
-        }
+        // SOLUCIÓN: Usamos supabaseClient para evitar conflictos con la librería
+        const supabaseUrl = 'https://ihwzflblfeayyjuaizrx.supabase.co';
+        const supabaseKey = 'sb_publishable_jRv8RmKitJkUsSRTmLto9A_nJtuQTI-';
+        const supabaseClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
         async function probarConexion() {
-            if(!supabase) return;
-            const { data, error } = await supabase.from('perfiles').select('*').limit(1);
-            if (error) console.log("Conectado a Supabase (Seguridad RLS activa):", error.message);
-            else console.log("Conectado:", data);
+            if(!supabaseClient) {
+                console.warn("Supabase no está disponible.");
+                return;
+            }
+            const { data, error } = await supabaseClient.from('perfiles').select('*').limit(1);
+            if (error) console.log("✅ Conectado a Supabase (Seguridad RLS bloqueando lectura sin login):", error.message);
+            else console.log("✅ Conectado a Supabase:", data);
         }
+        
+        probarConexion();
 
         const MASTER_PASSWORD = "JS2026";
         
@@ -202,9 +196,9 @@
 
         let currentWeek = 1;
         let adminMode = false;
-        let activePlan = JSON.parse(localStorage.getItem('js_plan_v9')) || JSON.parse(JSON.stringify(defaultPlan));
+        let activePlan = JSON.parse(localStorage.getItem('js_plan_v10')) || JSON.parse(JSON.stringify(defaultPlan));
 
-        function savePlan() { localStorage.setItem('js_plan_v9', JSON.stringify(activePlan)); }
+        function savePlan() { localStorage.setItem('js_plan_v10', JSON.stringify(activePlan)); }
         
         function saveNotes() {
             const notes = document.getElementById('coach-notes').value;
@@ -283,7 +277,6 @@
             localStorage.setItem(id, el.checked);
             el.parentElement.classList.toggle('completed');
 
-            // VERIFICACIÓN DE SEMANA 8
             if (currentWeek === 8 && el.checked) {
                 let allCompleted = true;
                 (activePlan[8] || []).forEach((_, idx) => {
