@@ -156,11 +156,11 @@
             <button onclick="toggleGlossary()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
             <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
             <div class="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
-                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr.</p></div>
-                <div><span class="font-bold text-white">Regenerativo / Suave:</span> <p class="text-gray-400 text-xs mt-1">Trote lento a ritmo conversacional.</p></div>
+                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p></div>
+                <div><span class="font-bold text-white">Regenerativo / Suave:</span> <p class="text-gray-400 text-xs mt-1">Trote lento a ritmo conversacional. Sirve para recuperar.</p></div>
                 <div><span class="font-bold text-white">Intervalos:</span> <p class="text-gray-400 text-xs mt-1">Segmentos de carrera rápida alternados con recuperación.</p></div>
                 <div><span class="font-bold text-white">Tempo:</span> <p class="text-gray-400 text-xs mt-1">Ritmo constante "cómodamente duro".</p></div>
-                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies.</p></div>
+                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies, no la velocidad.</p></div>
                 <div><span class="font-bold text-white">Taper (Afinar):</span> <p class="text-gray-400 text-xs mt-1">Reducción del volumen para llegar fresco a la carrera.</p></div>
             </div>
         </div>
@@ -262,12 +262,15 @@
         }
 
         // ==========================================
-        // LÓGICA DEL COACH BLINDADA
+        // LÓGICA DEL COACH (FIX: RACE CONDITION)
         // ==========================================
+        let cargandoDashboard = false;
         async function cargarDashboardCoach(coachId) {
+            if (cargandoDashboard) return; // Evitar que corra dos veces al mismo tiempo
+            cargandoDashboard = true;
+            
             document.getElementById('coach-loading').classList.remove('hidden');
             const list = document.getElementById('athletes-list');
-            list.innerHTML = '';
 
             try {
                 const { data: planes, error } = await supabaseClient.from('planes_entrenamiento')
@@ -276,9 +279,14 @@
 
                 if (error) throw error;
 
+                // EL FIX DE LA DUPLICACIÓN: Limpiamos la pantalla JUSTO ANTES de dibujar
+                // Así nos aseguramos de que no queden rastros de llamadas anteriores.
+                list.innerHTML = '';
+
                 if (!planes || planes.length === 0) {
                     list.innerHTML = '<p class="text-gray-500 text-center text-sm">No tienes atletas activos actualmente.</p>';
                     document.getElementById('coach-loading').classList.add('hidden');
+                    cargandoDashboard = false;
                     return;
                 }
 
@@ -300,7 +308,6 @@
 
                     const porcentaje = totalRutinas ? Math.round((completadas / totalRutinas) * 100) : 0;
                     
-                    // SEGURIDAD DE STRINGS: Limpiamos comillas y caracteres especiales que rompan el onclick
                     const nombreSeguro = atletaNombre.replace(/['"`\\]/g, '');
                     const tituloSeguro = plan.titulo.replace(/['"`\\]/g, '');
 
@@ -324,7 +331,9 @@
                 console.error("Error cargando dashboard:", e);
                 list.innerHTML = '<p class="text-red-500 text-center text-sm">Error al cargar datos.</p>';
             }
+            
             document.getElementById('coach-loading').classList.add('hidden');
+            cargandoDashboard = false;
         }
 
         function closeAthleteDetail() { document.getElementById('athlete-detail-modal').classList.add('hidden'); }
