@@ -129,6 +129,34 @@
         </main>
     </div>
 
+    <div id="glossary-modal" class="hidden fixed inset-0 z-50 modal-glass flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-gray-700 rounded-3xl p-6 max-w-sm w-full relative">
+            <button onclick="toggleGlossary()" class="absolute top-4 right-4 text-gray-400"><i class="fas fa-times text-xl"></i></button>
+            <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
+            <div class="space-y-4 text-sm pr-2">
+                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Caminar-Correr.</p></div>
+                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Tiempo en pies.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="athlete-detail-modal" class="hidden fixed inset-0 z-50 modal-glass flex flex-col justify-end sm:justify-center p-0 sm:p-4">
+        <div class="bg-gray-900 border-t sm:border border-gray-700 rounded-t-3xl sm:rounded-3xl w-full max-w-md mx-auto relative h-[85vh] sm:h-auto max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="p-6 border-b border-gray-800 bg-gray-900 rounded-t-3xl z-10 sticky top-0">
+                <button onclick="closeAthleteDetail()" class="absolute top-6 right-6 text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                <h2 id="detail-athlete-name" class="text-2xl font-black text-orange-500 uppercase italic mb-1 leading-none">...</h2>
+                <p id="detail-plan-title" class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Cargando progreso...</p>
+            </div>
+            
+            <div id="detail-loading" class="text-center py-10 text-orange-500 animate-pulse hidden">
+                <i class="fas fa-spinner fa-spin text-3xl"></i>
+            </div>
+            
+            <div id="detail-content" class="overflow-y-auto flex-1 p-6 space-y-4">
+                </div>
+        </div>
+    </div>
+
     <script>
         // CONFIGURACIÓN SUPABASE
         const supabaseUrl = 'https://ihwzflblfeayyjuaizrx.supabase.co';
@@ -139,24 +167,20 @@
         let registrosCloud = {}; 
         let currentWeek = 1;
 
-        // AUTENTICACIÓN Y ENRUTAMIENTO DE ROLES
+        // AUTENTICACIÓN
         async function checkSession() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             
             if (session) {
                 document.getElementById('login-view').classList.add('hidden');
-                
-                // Obtener el rol del usuario
                 const { data: perfil } = await supabaseClient.from('perfiles').select('rol, nombre').eq('id', session.user.id).single();
                 
                 if (perfil && perfil.rol === 'coach') {
-                    // Es el Entrenador
                     document.getElementById('coach-view').classList.remove('hidden');
                     document.getElementById('app-view').classList.add('hidden');
                     document.getElementById('coach-name-display').innerText = perfil.nombre;
                     cargarDashboardCoach(session.user.id);
                 } else {
-                    // Es un Atleta
                     document.getElementById('app-view').classList.remove('hidden');
                     document.getElementById('coach-view').classList.add('hidden');
                     if(perfil) document.getElementById('user-display-name').innerText = perfil.nombre;
@@ -192,18 +216,19 @@
 
         async function handleLogout() {
             await supabaseClient.auth.signOut();
-            window.location.reload(); // Refrescar limpio
+            window.location.reload(); 
         }
 
+        if(supabaseClient) supabaseClient.auth.onAuthStateChange(() => checkSession());
+
         // ==========================================
-        // LÓGICA DEL COACH (DASHBOARD)
+        // LÓGICA DEL COACH (DASHBOARD Y DETALLES)
         // ==========================================
         async function cargarDashboardCoach(coachId) {
             document.getElementById('coach-loading').classList.remove('hidden');
             const list = document.getElementById('athletes-list');
             list.innerHTML = '';
 
-            // 1. Buscar todos los planes donde este usuario es el coach
             const { data: planes } = await supabaseClient
                 .from('planes_entrenamiento')
                 .select('id, titulo, atleta_id, perfiles!planes_entrenamiento_atleta_id_fkey(nombre)')
@@ -216,25 +241,18 @@
                 return;
             }
 
-            // 2. Para cada plan, calculamos un progreso rápido
             for (const plan of planes) {
                 const atletaNombre = plan.perfiles ? plan.perfiles.nombre : 'Atleta Desconocido';
                 
-                // Buscar cuántas rutinas tiene el plan en total
-                const { count: totalRutinas } = await supabaseClient.from('rutinas_programadas')
-                    .select('*', { count: 'exact', head: true }).eq('plan_id', plan.id);
-                
-                // Buscar cuántas ha completado el atleta
-                const { count: completadas } = await supabaseClient.from('registros_ejecucion')
-                    .select('*, rutinas_programadas!inner(plan_id)', { count: 'exact', head: true })
-                    .eq('rutinas_programadas.plan_id', plan.id)
-                    .eq('completado', true);
+                const { count: totalRutinas } = await supabaseClient.from('rutinas_programadas').select('*', { count: 'exact', head: true }).eq('plan_id', plan.id);
+                const { count: completadas } = await supabaseClient.from('registros_ejecucion').select('*, rutinas_programadas!inner(plan_id)', { count: 'exact', head: true }).eq('rutinas_programadas.plan_id', plan.id).eq('completado', true);
 
                 const porcentaje = totalRutinas ? Math.round((completadas / totalRutinas) * 100) : 0;
 
+                // Modificado: Ahora el contenedor completo es un botón que llama a abrirDetalleAtleta
                 list.innerHTML += `
-                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer">
-                        <div class="flex justify-between items-center mb-3">
+                    <div onclick="abrirDetalleAtleta('${plan.id}', '${atletaNombre}', '${plan.titulo}')" class="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer shadow-lg active:scale-95">
+                        <div class="flex justify-between items-center mb-3 pointer-events-none">
                             <div>
                                 <h3 class="font-black text-lg text-white">${atletaNombre}</h3>
                                 <p class="text-xs text-orange-500 uppercase font-bold">${plan.titulo}</p>
@@ -243,10 +261,13 @@
                                 <span class="text-2xl font-black text-gray-300">${porcentaje}%</span>
                             </div>
                         </div>
-                        <div class="w-full bg-black rounded-full h-2">
+                        <div class="w-full bg-black rounded-full h-2 pointer-events-none">
                             <div class="bg-green-500 h-2 rounded-full transition-all" style="width: ${porcentaje}%"></div>
                         </div>
-                        <p class="text-[10px] text-gray-500 mt-2 text-right">${completadas || 0} de ${totalRutinas || 0} sesiones completadas</p>
+                        <div class="flex justify-between items-center mt-3 pointer-events-none">
+                            <span class="text-[9px] text-gray-500 uppercase"><i class="fas fa-search-plus mr-1"></i> Toque para detalles</span>
+                            <span class="text-[10px] text-gray-400 font-bold">${completadas || 0} de ${totalRutinas || 0} completadas</span>
+                        </div>
                     </div>
                 `;
             }
@@ -254,8 +275,86 @@
             document.getElementById('coach-loading').classList.add('hidden');
         }
 
+        // --- NUEVA FUNCIÓN: Abrir detalle del atleta ---
+        function closeAthleteDetail() {
+            document.getElementById('athlete-detail-modal').classList.add('hidden');
+        }
+
+        async function abrirDetalleAtleta(planId, atletaNombre, planTitulo) {
+            // 1. Mostrar modal en modo carga
+            document.getElementById('detail-athlete-name').innerText = atletaNombre;
+            document.getElementById('detail-plan-title').innerText = planTitulo;
+            document.getElementById('detail-content').innerHTML = '';
+            document.getElementById('detail-loading').classList.remove('hidden');
+            document.getElementById('athlete-detail-modal').classList.remove('hidden');
+
+            // 2. Traer todas las rutinas de ese plan ordenadas por semana
+            const { data: rutinas } = await supabaseClient
+                .from('rutinas_programadas')
+                .select('*')
+                .eq('plan_id', planId)
+                .order('semana', { ascending: true })
+                .order('id', { ascending: true });
+
+            // 3. Traer los registros de ejecución
+            const { data: ejecuciones } = await supabaseClient
+                .from('registros_ejecucion')
+                .select('rutina_id, completado, tiempo_app, garmin_dist, garmin_pace, notas')
+                .eq('completado', true);
+
+            document.getElementById('detail-loading').classList.add('hidden');
+
+            if (!rutinas || rutinas.length === 0) {
+                document.getElementById('detail-content').innerHTML = '<p class="text-gray-500 text-center py-4">No hay rutinas asignadas a este plan.</p>';
+                return;
+            }
+
+            // Mapear ejecuciones para búsqueda rápida
+            const completadasMap = {};
+            if (ejecuciones) ejecuciones.forEach(ej => completadasMap[ej.rutina_id] = ej);
+
+            // 4. Renderizar agrupando por semana
+            let html = '';
+            let currentGroupWeek = 0;
+
+            rutinas.forEach(r => {
+                // Nuevo encabezado de semana si cambia
+                if (r.semana !== currentGroupWeek) {
+                    currentGroupWeek = r.semana;
+                    html += `
+                        <div class="mt-6 mb-2 flex items-center gap-2">
+                            <div class="h-px bg-gray-800 flex-1"></div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-500">SEMANA ${currentGroupWeek}</span>
+                            <div class="h-px bg-gray-800 flex-1"></div>
+                        </div>
+                    `;
+                }
+
+                const registro = completadasMap[r.id];
+                const isCompleted = registro && registro.completado;
+                
+                const borderColor = isCompleted ? 'border-green-500/50 bg-[#064e3b]/30' : 'border-gray-800 bg-black';
+                const icon = isCompleted ? '<i class="fas fa-check-circle text-green-500 text-xl"></i>' : '<i class="far fa-circle text-gray-700 text-xl"></i>';
+
+                html += `
+                    <div class="flex items-center justify-between p-4 border rounded-2xl ${borderColor}">
+                        <div class="pr-4">
+                            <span class="text-[9px] ${isCompleted ? 'text-green-400' : 'text-orange-500'} font-bold uppercase block">${r.dia_semana}</span>
+                            <h4 class="text-sm font-black text-gray-100">${r.titulo}</h4>
+                            <p class="text-[10px] text-gray-500 leading-tight mt-1">${r.detalle}</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            ${icon}
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('detail-content').innerHTML = html;
+        }
+
         // ==========================================
-        // LÓGICA DEL ATLETA (Igual que antes)
+        // LÓGICA DEL ATLETA 
         // ==========================================
         async function descargarPlanDeLaNube(userId) {
             document.getElementById('cloud-loading').classList.remove('hidden');
@@ -340,7 +439,8 @@
         }
         function resetTimer() { clearInterval(timer); isRunning = false; seconds = 0; document.getElementById('display').innerText = "00:00:00"; document.getElementById('startBtn').innerHTML = '<i class="fas fa-play text-white"></i>';}
         
-        // Iniciar app verificando sesión
+        function toggleGlossary() { document.getElementById('glossary-modal').classList.toggle('hidden'); }
+        
         if(supabaseClient) checkSession();
     </script>
 </body>
