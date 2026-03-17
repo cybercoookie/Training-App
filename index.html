@@ -104,6 +104,15 @@
                     </span>
                 </div>
 
+                <section class="bg-gray-900 p-6 rounded-3xl border border-gray-800 text-center">
+                    <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Cronómetro JS</h2>
+                    <div id="display" class="text-5xl font-mono font-bold mb-4 text-white">00:00:00</div>
+                    <div class="flex justify-center gap-4">
+                        <button onclick="startStop()" id="startBtn" class="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95"><i class="fas fa-play text-white"></i></button>
+                        <button onclick="resetTimer()" class="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95"><i class="fas fa-redo text-gray-400"></i></button>
+                    </div>
+                </section>
+
                 <div class="flex overflow-x-auto gap-6 border-b border-gray-900 pb-3 no-scrollbar">
                     <script>
                         for(let i=1; i<=8; i++) document.write(`<button onclick="loadWeek(${i}, event)" class="week-tab px-2 py-1 font-black text-xs">${i==8?'🏁':'S'+i}</button>`);
@@ -112,13 +121,39 @@
 
                 <div id="training-list" class="space-y-4"></div>
                 
-                <section class="bg-gray-900 p-6 rounded-3xl border border-gray-800 text-center">
-                    <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Cronómetro JS</h2>
-                    <div id="display" class="text-5xl font-mono font-bold mb-4 text-white">00:00:00</div>
-                    <div class="flex justify-center gap-4">
-                        <button onclick="startStop()" id="startBtn" class="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95"><i class="fas fa-play text-white"></i></button>
-                        <button onclick="resetTimer()" class="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95"><i class="fas fa-redo text-gray-400"></i></button>
+                <section class="bg-gray-900 p-6 rounded-3xl border border-gray-800 space-y-4">
+                    <h3 class="text-[10px] font-black uppercase text-orange-500 tracking-widest flex items-center gap-2 border-b border-gray-800 pb-2">
+                        <i class="fas fa-cloud-upload-alt"></i> Reporte del Día
+                    </h3>
+                    
+                    <div>
+                        <label class="text-[9px] text-gray-500 font-bold uppercase block mb-1">¿Qué entrenamiento hiciste?</label>
+                        <select id="rutina-selector" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-gray-300">
+                            </select>
                     </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[9px] text-gray-500 font-bold uppercase block mb-1">Distancia (mi)</label>
+                            <input type="number" step="0.01" id="garmin-dist" placeholder="Ej: 2.51" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-gray-500 font-bold uppercase block mb-1">Paso Promedio</label>
+                            <input type="text" id="garmin-pace" placeholder="Ej: 13:17" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <textarea id="coach-notes" placeholder="¿Alguna molestia o nota para el Coach?" class="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm focus:border-orange-500 outline-none h-20 transition-all"></textarea>
+                    </div>
+
+                    <button onclick="guardarDetalles()" id="save-details-btn" class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm mb-2">
+                        <i class="fas fa-save text-xl"></i> GUARDAR EN LA NUBE
+                    </button>
+
+                    <button onclick="sendToCoachWhatsApp()" class="w-full bg-green-500 hover:bg-green-600 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm border border-green-400">
+                        <i class="fab fa-whatsapp text-xl"></i> ENVIAR RESUMEN SEMANAL
+                    </button>
                 </section>
             </div>
         </main>
@@ -129,12 +164,12 @@
             <button onclick="toggleGlossary()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
             <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
             <div class="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
-                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. El primer número son los minutos corriendo, el segundo los minutos caminando. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p></div>
-                <div><span class="font-bold text-white">Regenerativo / Suave:</span> <p class="text-gray-400 text-xs mt-1">Trote muy lento a ritmo conversacional. Sirve para recuperar las piernas y sumar volumen sin fatiga.</p></div>
-                <div><span class="font-bold text-white">Intervalos:</span> <p class="text-gray-400 text-xs mt-1">Segmentos de carrera más rápida alternados con periodos de recuperación (caminata o trote súper suave).</p></div>
-                <div><span class="font-bold text-white">Tempo:</span> <p class="text-gray-400 text-xs mt-1">Ritmo de carrera constante. Es un paso "cómodamente duro" donde te cuesta hablar en oraciones completas.</p></div>
-                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">El entrenamiento más importante. No importa la velocidad, el objetivo es acostumbrar al cuerpo a estar tiempo en movimiento.</p></div>
-                <div><span class="font-bold text-white">Taper (Afinar):</span> <p class="text-gray-400 text-xs mt-1">Reducción del volumen de entrenamiento los días antes de la carrera para llegar con las piernas frescas al 100%.</p></div>
+                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p></div>
+                <div><span class="font-bold text-white">Regenerativo / Suave:</span> <p class="text-gray-400 text-xs mt-1">Trote lento a ritmo conversacional. Sirve para recuperar.</p></div>
+                <div><span class="font-bold text-white">Intervalos:</span> <p class="text-gray-400 text-xs mt-1">Segmentos de carrera rápida alternados con recuperación.</p></div>
+                <div><span class="font-bold text-white">Tempo:</span> <p class="text-gray-400 text-xs mt-1">Ritmo constante "cómodamente duro".</p></div>
+                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies, no la velocidad.</p></div>
+                <div><span class="font-bold text-white">Taper (Afinar):</span> <p class="text-gray-400 text-xs mt-1">Reducción del volumen para llegar fresco a la carrera.</p></div>
             </div>
         </div>
     </div>
@@ -163,12 +198,12 @@
         let registrosCloud = {}; 
         let currentWeek = 1;
 
-        // AUTENTICACIÓN MEJORADA (Manejo de Refresh y Logout)
+        // ==========================================
+        // AUTENTICACIÓN
+        // ==========================================
         async function checkSession() {
-            // Obtenemos la sesión directamente. Supabase maneja el localStorage internamente.
-            const { data: { session }, error } = await supabaseClient.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
             
-            // Escondemos todo primero para evitar destellos
             document.getElementById('app-view').classList.add('hidden');
             document.getElementById('coach-view').classList.add('hidden');
             document.getElementById('login-view').classList.add('hidden');
@@ -212,31 +247,25 @@
         }
 
         async function handleLogout() {
-            // Limpiamos los contenedores visualmente antes de salir
             document.getElementById('training-list').innerHTML = '';
             document.getElementById('athletes-list').innerHTML = '';
             document.getElementById('email').value = '';
             document.getElementById('password').value = '';
-            
-            // Cerramos sesión de forma asíncrona y segura
             await supabaseClient.auth.signOut();
             checkSession(); 
         }
 
+        if(supabaseClient) supabaseClient.auth.onAuthStateChange(() => checkSession());
+
         // ==========================================
-        // LÓGICA DEL COACH (DASHBOARD)
+        // LÓGICA DEL COACH (DASHBOARD Y DETALLES)
         // ==========================================
         async function cargarDashboardCoach(coachId) {
             document.getElementById('coach-loading').classList.remove('hidden');
             const list = document.getElementById('athletes-list');
             list.innerHTML = '';
 
-            const { data: planes } = await supabaseClient
-                .from('planes_entrenamiento')
-                .select('id, titulo, atleta_id, perfiles!planes_entrenamiento_atleta_id_fkey(nombre)')
-                .eq('coach_id', coachId)
-                .eq('estado', 'activo')
-                .order('fecha_creacion', { ascending: false }); // Traer los más nuevos primero
+            const { data: planes } = await supabaseClient.from('planes_entrenamiento').select('id, titulo, atleta_id, perfiles!planes_entrenamiento_atleta_id_fkey(nombre)').eq('coach_id', coachId).eq('estado', 'activo').order('fecha_creacion', { ascending: false });
 
             if (!planes || planes.length === 0) {
                 list.innerHTML = '<p class="text-gray-500 text-center text-sm">No tienes atletas activos actualmente.</p>';
@@ -244,10 +273,8 @@
                 return;
             }
 
-            // Filtro para eliminar planes duplicados (Mostrar solo 1 plan por atleta)
             const planesUnicos = [];
             const atletasVistos = new Set();
-            
             for (const plan of planes) {
                 if (!atletasVistos.has(plan.atleta_id)) {
                     atletasVistos.add(plan.atleta_id);
@@ -255,10 +282,8 @@
                 }
             }
 
-            // Renderizar las tarjetas únicas
             for (const plan of planesUnicos) {
                 const atletaNombre = plan.perfiles ? plan.perfiles.nombre : 'Atleta Desconocido';
-                
                 const { count: totalRutinas } = await supabaseClient.from('rutinas_programadas').select('*', { count: 'exact', head: true }).eq('plan_id', plan.id);
                 const { count: completadas } = await supabaseClient.from('registros_ejecucion').select('*, rutinas_programadas!inner(plan_id)', { count: 'exact', head: true }).eq('rutinas_programadas.plan_id', plan.id).eq('completado', true);
 
@@ -267,13 +292,8 @@
                 list.innerHTML += `
                     <div onclick="abrirDetalleAtleta('${plan.id}', '${atletaNombre}', '${plan.titulo}')" class="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer shadow-lg active:scale-95">
                         <div class="flex justify-between items-center mb-3 pointer-events-none">
-                            <div>
-                                <h3 class="font-black text-lg text-white">${atletaNombre}</h3>
-                                <p class="text-xs text-orange-500 uppercase font-bold">${plan.titulo}</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-2xl font-black text-gray-300">${porcentaje}%</span>
-                            </div>
+                            <div><h3 class="font-black text-lg text-white">${atletaNombre}</h3><p class="text-xs text-orange-500 uppercase font-bold">${plan.titulo}</p></div>
+                            <div class="text-right"><span class="text-2xl font-black text-gray-300">${porcentaje}%</span></div>
                         </div>
                         <div class="w-full bg-black rounded-full h-2 pointer-events-none">
                             <div class="bg-green-500 h-2 rounded-full transition-all" style="width: ${porcentaje}%"></div>
@@ -285,7 +305,6 @@
                     </div>
                 `;
             }
-            
             document.getElementById('coach-loading').classList.add('hidden');
         }
 
@@ -325,14 +344,29 @@
                 const borderColor = isCompleted ? 'border-green-500/50 bg-[#064e3b]/30' : 'border-gray-800 bg-black';
                 const icon = isCompleted ? '<i class="fas fa-check-circle text-green-500 text-xl"></i>' : '<i class="far fa-circle text-gray-700 text-xl"></i>';
 
+                let extraDataHtml = '';
+                if (isCompleted && (registro.garmin_dist || registro.garmin_pace || registro.notas)) {
+                    extraDataHtml += `<div class="mt-3 pt-3 border-t border-gray-700/50 space-y-1">`;
+                    if(registro.garmin_dist || registro.garmin_pace) {
+                        extraDataHtml += `<p class="text-[10px] text-gray-300"><i class="fas fa-watch-fitness text-orange-500 mr-1"></i> ${registro.garmin_dist || '--'} mi | Paso: ${registro.garmin_pace || '--'}</p>`;
+                    }
+                    if(registro.notas) {
+                        extraDataHtml += `<p class="text-[10px] text-gray-400 italic"><i class="fas fa-comment-alt text-blue-500 mr-1"></i> "${registro.notas}"</p>`;
+                    }
+                    extraDataHtml += `</div>`;
+                }
+
                 html += `
-                    <div class="flex items-center justify-between p-4 border rounded-2xl ${borderColor}">
-                        <div class="pr-4">
-                            <span class="text-[9px] ${isCompleted ? 'text-green-400' : 'text-orange-500'} font-bold uppercase block">${r.dia_semana}</span>
-                            <h4 class="text-sm font-black text-gray-100">${r.titulo}</h4>
-                            <p class="text-[10px] text-gray-500 leading-tight mt-1">${r.detalle}</p>
+                    <div class="p-4 border rounded-2xl ${borderColor}">
+                        <div class="flex items-center justify-between">
+                            <div class="pr-4">
+                                <span class="text-[9px] ${isCompleted ? 'text-green-400' : 'text-orange-500'} font-bold uppercase block">${r.dia_semana}</span>
+                                <h4 class="text-sm font-black text-gray-100">${r.titulo}</h4>
+                                <p class="text-[10px] text-gray-500 leading-tight mt-1">${r.detalle}</p>
+                            </div>
+                            <div class="flex-shrink-0">${icon}</div>
                         </div>
-                        <div class="flex-shrink-0">${icon}</div>
+                        ${extraDataHtml}
                     </div>
                 `;
             });
@@ -355,10 +389,18 @@
             document.getElementById('plan-title').innerText = planActivo.titulo;
 
             const { data: rutinas } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planActivo.id).order('id', { ascending: true });
-            const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, id');
+            const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, id, garmin_dist, garmin_pace, notas');
             
             registrosCloud = {};
-            if(ejecuciones) ejecuciones.forEach(ej => registrosCloud[ej.rutina_id] = { completado: ej.completado, record_id: ej.id });
+            if(ejecuciones) {
+                ejecuciones.forEach(ej => registrosCloud[ej.rutina_id] = { 
+                    completado: ej.completado, 
+                    record_id: ej.id,
+                    dist: ej.garmin_dist,
+                    pace: ej.garmin_pace,
+                    notas: ej.notas
+                });
+            }
 
             let planFormateado = {};
             for(let i=1; i<=8; i++) planFormateado[i] = [];
@@ -373,10 +415,15 @@
         function loadWeek(w, ev = null) {
             currentWeek = w;
             const list = document.getElementById('training-list');
+            const selector = document.getElementById('rutina-selector');
+            
             list.innerHTML = '';
+            if(selector) selector.innerHTML = '<option value="">Selecciona el entrenamiento de hoy...</option>';
             
             (activePlanCloud[w] || []).forEach((item) => {
-                const isChecked = registrosCloud[item.id_db] ? registrosCloud[item.id_db].completado : false;
+                const registro = registrosCloud[item.id_db];
+                const isChecked = registro ? registro.completado : false;
+                
                 list.innerHTML += `
                     <div class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 transition-all ${isChecked ? 'completed' : ''}">
                         <div class="flex-1 mr-4">
@@ -387,12 +434,27 @@
                         <input type="checkbox" onchange="toggleTaskDB('${item.id_db}', this)" ${isChecked ? 'checked' : ''} class="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer">
                     </div>
                 `;
+
+                if(selector) selector.innerHTML += `<option value="${item.id_db}">${item.dia} - ${item.tarea}</option>`;
             });
+
+            document.getElementById('garmin-dist').value = '';
+            document.getElementById('garmin-pace').value = '';
+            document.getElementById('coach-notes').value = '';
+
             document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('tab-active'));
             const tabs = document.querySelectorAll('.week-tab');
             if (ev && ev.target) ev.target.classList.add('tab-active');
             else if (tabs[w-1]) tabs[w-1].classList.add('tab-active');
         }
+
+        document.getElementById('rutina-selector').addEventListener('change', function() {
+            const rutinaId = this.value;
+            const registro = registrosCloud[rutinaId];
+            document.getElementById('garmin-dist').value = registro?.dist || '';
+            document.getElementById('garmin-pace').value = registro?.pace || '';
+            document.getElementById('coach-notes').value = registro?.notas || '';
+        });
 
         async function toggleTaskDB(rutinaId, checkboxElement) {
             const isChecked = checkboxElement.checked;
@@ -413,6 +475,61 @@
             } catch (error) { statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500"></i> Error'; }
         }
 
+        async function guardarDetalles() {
+            const rutinaId = document.getElementById('rutina-selector').value;
+            const dist = document.getElementById('garmin-dist').value;
+            const pace = document.getElementById('garmin-pace').value;
+            const notes = document.getElementById('coach-notes').value;
+            const btn = document.getElementById('save-details-btn');
+
+            if(!rutinaId) { alert("Por favor selecciona un entrenamiento del menú."); return; }
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+            const registroPrevio = registrosCloud[rutinaId];
+            const distNum = dist ? parseFloat(dist) : null;
+
+            try {
+                if(registroPrevio && registroPrevio.record_id) {
+                    await supabaseClient.from('registros_ejecucion').update({ completado: true, garmin_dist: distNum, garmin_pace: pace || null, notas: notes || null }).eq('id', registroPrevio.record_id);
+                    registrosCloud[rutinaId] = { ...registrosCloud[rutinaId], dist: distNum, pace: pace, notas: notes, completado: true };
+                } else {
+                    const { data } = await supabaseClient.from('registros_ejecucion').insert([{ rutina_id: rutinaId, completado: true, garmin_dist: distNum, garmin_pace: pace || null, notas: notes || null }]).select().single();
+                    if(data) registrosCloud[rutinaId] = { completado: true, record_id: data.id, dist: distNum, pace: pace, notas: notes };
+                }
+                
+                loadWeek(currentWeek);
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btn.classList.add('bg-green-600');
+                btn.innerHTML = '<i class="fas fa-check"></i> ¡Guardado!';
+                setTimeout(() => { btn.classList.remove('bg-green-600'); btn.classList.add('bg-blue-600', 'hover:bg-blue-700'); btn.innerHTML = '<i class="fas fa-save text-xl"></i> GUARDAR EN LA NUBE'; }, 3000);
+            } catch(e) { btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error al guardar'; }
+        }
+
+        // RESTAURADO: Función de WhatsApp
+        function sendToCoachWhatsApp() {
+            let atletaName = document.getElementById('user-display-name').innerText;
+            let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n`;
+            report += `*Atleta:* ${atletaName}\n`;
+            report += `*Semana:* ${currentWeek}\n\n`;
+            report += `*ESTADO DE RUTINAS:*\n`;
+
+            (activePlanCloud[currentWeek] || []).forEach((item) => {
+                const registro = registrosCloud[item.id_db];
+                const isChecked = registro ? registro.completado : false;
+                const statusIcon = isChecked ? '✅' : '❌';
+                
+                report += `${statusIcon} ${item.dia}: ${item.tarea}\n`;
+                
+                // Si completó y tiene info de Garmin, la añadimos al reporte
+                if (isChecked && (registro.dist || registro.pace)) {
+                    report += `   └ ⌚ ${registro.dist || '--'} mi | ⚡ ${registro.pace || '--'} /mi\n`;
+                }
+            });
+
+            report += `\n¡Seguimos sumando millas! 🔥`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
+        }
+
         let timer, isRunning = false, seconds = 0;
         function startStop() {
             if (isRunning) clearInterval(timer);
@@ -425,13 +542,9 @@
             document.getElementById('startBtn').innerHTML = isRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
         }
         function resetTimer() { clearInterval(timer); isRunning = false; seconds = 0; document.getElementById('display').innerText = "00:00:00"; document.getElementById('startBtn').innerHTML = '<i class="fas fa-play text-white"></i>';}
-        
         function toggleGlossary() { document.getElementById('glossary-modal').classList.toggle('hidden'); }
         
-        // Ejecutar al cargar la página para revisar sesión guardada
-        window.onload = () => {
-            if(supabaseClient) checkSession();
-        };
+        window.onload = () => { if(supabaseClient) checkSession(); };
     </script>
 </body>
 </html>
