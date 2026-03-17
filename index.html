@@ -55,7 +55,7 @@
                     Coach: <span id="coach-name-display" class="text-white">...</span>
                 </div>
             </div>
-            <button onclick="handleLogout()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400">
+            <button onclick="handleLogout()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400 transition-colors">
                 <i class="fas fa-sign-out-alt"></i>
             </button>
         </header>
@@ -79,10 +79,10 @@
                 </div>
             </div>
             <div class="flex gap-3">
-                <button onclick="toggleGlossary()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-blue-400 hover:text-blue-300">
+                <button onclick="toggleGlossary()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-blue-400 hover:text-blue-300 transition-colors">
                     <i class="fas fa-book"></i>
                 </button>
-                <button onclick="handleLogout()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400">
+                <button onclick="handleLogout()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400 transition-colors">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
@@ -94,6 +94,7 @@
             </div>
 
             <div id="entrenamiento-container" class="space-y-6 hidden">
+                
                 <div class="bg-gray-900 border border-orange-500/30 p-3 rounded-xl flex justify-between items-center">
                     <div>
                         <span class="text-[10px] text-orange-500 font-bold uppercase tracking-widest">Plan Actual</span>
@@ -108,15 +109,13 @@
                     <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Cronómetro JS</h2>
                     <div id="display" class="text-5xl font-mono font-bold mb-4 text-white">00:00:00</div>
                     <div class="flex justify-center gap-4">
-                        <button onclick="startStop()" id="startBtn" class="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95"><i class="fas fa-play text-white"></i></button>
-                        <button onclick="resetTimer()" class="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95"><i class="fas fa-redo text-gray-400"></i></button>
+                        <button onclick="startStop()" id="startBtn" class="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"><i class="fas fa-play text-white"></i></button>
+                        <button onclick="resetTimer()" class="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform"><i class="fas fa-redo text-gray-400"></i></button>
                     </div>
                 </section>
 
                 <div class="flex overflow-x-auto gap-6 border-b border-gray-900 pb-3 no-scrollbar">
-                    <script>
-                        for(let i=1; i<=8; i++) document.write(`<button onclick="loadWeek(${i}, event)" class="week-tab px-2 py-1 font-black text-xs">${i==8?'🏁':'S'+i}</button>`);
-                    </script>
+                    <script>for(let i=1; i<=8; i++) document.write(`<button onclick="loadWeek(${i}, event)" class="week-tab px-2 py-1 font-black text-xs">${i==8?'🏁':'S'+i}</button>`);</script>
                 </div>
 
                 <div id="training-list" class="space-y-4"></div>
@@ -128,30 +127,29 @@
                     
                     <div>
                         <label class="text-[9px] text-gray-500 font-bold uppercase block mb-1">¿Qué entrenamiento hiciste?</label>
-                        <select id="rutina-selector" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-gray-300">
-                            </select>
+                        <select id="rutina-selector" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-gray-300 transition-colors"></select>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="text-[9px] text-gray-500 font-bold uppercase block mb-1">Distancia (mi)</label>
-                            <input type="number" step="0.01" id="garmin-dist" placeholder="Ej: 2.51" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none">
+                            <input type="number" step="0.01" id="garmin-dist" placeholder="Ej: 2.51" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none transition-colors">
                         </div>
                         <div>
                             <label class="text-[9px] text-gray-500 font-bold uppercase block mb-1">Paso Promedio</label>
-                            <input type="text" id="garmin-pace" placeholder="Ej: 13:17" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none">
+                            <input type="text" id="garmin-pace" placeholder="Ej: 13:17" class="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none transition-colors">
                         </div>
                     </div>
 
                     <div>
-                        <textarea id="coach-notes" placeholder="¿Alguna molestia o nota para el Coach?" class="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm focus:border-orange-500 outline-none h-20 transition-all"></textarea>
+                        <textarea id="coach-notes" placeholder="¿Alguna molestia o nota para el Coach?" class="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm focus:border-orange-500 outline-none h-20 transition-colors"></textarea>
                     </div>
 
-                    <button onclick="guardarDetalles()" id="save-details-btn" class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm mb-2">
+                    <button onclick="guardarDetalles()" id="save-details-btn" class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm mb-2 active:scale-95">
                         <i class="fas fa-save text-xl"></i> GUARDAR EN LA NUBE
                     </button>
 
-                    <button onclick="sendToCoachWhatsApp()" class="w-full bg-green-500 hover:bg-green-600 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm border border-green-400">
+                    <button onclick="sendToCoachWhatsApp()" class="w-full bg-green-500 hover:bg-green-600 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm border border-green-400 active:scale-95">
                         <i class="fab fa-whatsapp text-xl"></i> ENVIAR RESUMEN SEMANAL
                     </button>
                 </section>
@@ -161,7 +159,7 @@
 
     <div id="glossary-modal" class="hidden fixed inset-0 z-50 modal-glass flex items-center justify-center p-4">
         <div class="bg-gray-900 border border-gray-700 rounded-3xl p-6 max-w-sm w-full relative">
-            <button onclick="toggleGlossary()" class="absolute top-4 right-4 text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+            <button onclick="toggleGlossary()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
             <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
             <div class="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
                 <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p></div>
@@ -177,7 +175,7 @@
     <div id="athlete-detail-modal" class="hidden fixed inset-0 z-50 modal-glass flex flex-col justify-end sm:justify-center p-0 sm:p-4">
         <div class="bg-gray-900 border-t sm:border border-gray-700 rounded-t-3xl sm:rounded-3xl w-full max-w-md mx-auto relative h-[85vh] sm:h-auto max-h-[85vh] flex flex-col shadow-2xl">
             <div class="p-6 border-b border-gray-800 bg-gray-900 rounded-t-3xl z-10 sticky top-0">
-                <button onclick="closeAthleteDetail()" class="absolute top-6 right-6 text-gray-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+                <button onclick="closeAthleteDetail()" class="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
                 <h2 id="detail-athlete-name" class="text-2xl font-black text-orange-500 uppercase italic mb-1 leading-none">...</h2>
                 <p id="detail-plan-title" class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Cargando progreso...</p>
             </div>
@@ -199,44 +197,58 @@
         let currentWeek = 1;
 
         // ==========================================
-        // AUTENTICACIÓN
+        // AUTENTICACIÓN MEJORADA (Anti-Black-Screen)
         // ==========================================
         async function checkSession() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            
+            try {
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+                if (error) throw error;
+                
+                if (session) {
+                    const { data: perfil, error: perfilError } = await supabaseClient.from('perfiles').select('rol, nombre').eq('id', session.user.id).single();
+                    if (perfilError) throw perfilError;
+
+                    document.getElementById('login-view').classList.add('hidden');
+                    
+                    if (perfil && perfil.rol === 'coach') {
+                        document.getElementById('app-view').classList.add('hidden');
+                        document.getElementById('coach-view').classList.remove('hidden');
+                        document.getElementById('coach-name-display').innerText = perfil.nombre;
+                        cargarDashboardCoach(session.user.id);
+                    } else {
+                        document.getElementById('coach-view').classList.add('hidden');
+                        document.getElementById('app-view').classList.remove('hidden');
+                        if(perfil) document.getElementById('user-display-name').innerText = perfil.nombre;
+                        descargarPlanDeLaNube(session.user.id);
+                    }
+                } else {
+                    mostrarLoginScreen();
+                }
+            } catch (e) {
+                console.error("Error validando sesión:", e);
+                mostrarLoginScreen(); // Si falla, te lleva al login en vez de quedarse negra
+            }
+        }
+
+        function mostrarLoginScreen() {
             document.getElementById('app-view').classList.add('hidden');
             document.getElementById('coach-view').classList.add('hidden');
-            document.getElementById('login-view').classList.add('hidden');
-            
-            if (session) {
-                const { data: perfil } = await supabaseClient.from('perfiles').select('rol, nombre').eq('id', session.user.id).single();
-                
-                if (perfil && perfil.rol === 'coach') {
-                    document.getElementById('coach-view').classList.remove('hidden');
-                    document.getElementById('coach-name-display').innerText = perfil.nombre;
-                    cargarDashboardCoach(session.user.id);
-                } else {
-                    document.getElementById('app-view').classList.remove('hidden');
-                    if(perfil) document.getElementById('user-display-name').innerText = perfil.nombre;
-                    descargarPlanDeLaNube(session.user.id);
-                }
-            } else {
-                document.getElementById('login-view').classList.remove('hidden');
-                document.getElementById('login-view').classList.add('flex');
-            }
+            document.getElementById('login-view').classList.remove('hidden');
+            document.getElementById('login-view').classList.add('flex');
         }
 
         async function handleLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
             const btn = document.getElementById('login-btn');
             const errorMsg = document.getElementById('login-error');
-
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             errorMsg.classList.add('hidden');
 
-            const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            const { error } = await supabaseClient.auth.signInWithPassword({
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            });
+
             if (error) {
                 errorMsg.innerText = "Credenciales incorrectas.";
                 errorMsg.classList.remove('hidden');
@@ -246,64 +258,84 @@
             }
         }
 
+        // SOLUCIÓN AL BOTÓN DE LOGOUT CONGELADO
         async function handleLogout() {
-            document.getElementById('training-list').innerHTML = '';
-            document.getElementById('athletes-list').innerHTML = '';
-            document.getElementById('email').value = '';
-            document.getElementById('password').value = '';
-            await supabaseClient.auth.signOut();
-            checkSession(); 
+            try {
+                // Borramos la sesión de forma asíncrona pero sin detener la página
+                await supabaseClient.auth.signOut();
+            } catch (error) {
+                console.error("Error al salir:", error);
+            } finally {
+                // Obligamos al navegador a recargar y limpiar memoria desde cero
+                window.location.reload(); 
+            }
         }
 
-        if(supabaseClient) supabaseClient.auth.onAuthStateChange(() => checkSession());
+        // Previene llamadas dobles cuando la sesión se refresca en el fondo
+        if(supabaseClient) {
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+                    checkSession();
+                }
+            });
+        }
 
         // ==========================================
-        // LÓGICA DEL COACH (DASHBOARD Y DETALLES)
+        // LÓGICA DEL COACH
         // ==========================================
         async function cargarDashboardCoach(coachId) {
             document.getElementById('coach-loading').classList.remove('hidden');
             const list = document.getElementById('athletes-list');
             list.innerHTML = '';
 
-            const { data: planes } = await supabaseClient.from('planes_entrenamiento').select('id, titulo, atleta_id, perfiles!planes_entrenamiento_atleta_id_fkey(nombre)').eq('coach_id', coachId).eq('estado', 'activo').order('fecha_creacion', { ascending: false });
+            try {
+                const { data: planes, error } = await supabaseClient.from('planes_entrenamiento')
+                    .select('id, titulo, atleta_id, perfiles!planes_entrenamiento_atleta_id_fkey(nombre)')
+                    .eq('coach_id', coachId).eq('estado', 'activo').order('fecha_creacion', { ascending: false });
 
-            if (!planes || planes.length === 0) {
-                list.innerHTML = '<p class="text-gray-500 text-center text-sm">No tienes atletas activos actualmente.</p>';
-                document.getElementById('coach-loading').classList.add('hidden');
-                return;
-            }
+                if (error) throw error;
 
-            const planesUnicos = [];
-            const atletasVistos = new Set();
-            for (const plan of planes) {
-                if (!atletasVistos.has(plan.atleta_id)) {
-                    atletasVistos.add(plan.atleta_id);
-                    planesUnicos.push(plan);
+                if (!planes || planes.length === 0) {
+                    list.innerHTML = '<p class="text-gray-500 text-center text-sm">No tienes atletas activos actualmente.</p>';
+                    document.getElementById('coach-loading').classList.add('hidden');
+                    return;
                 }
-            }
 
-            for (const plan of planesUnicos) {
-                const atletaNombre = plan.perfiles ? plan.perfiles.nombre : 'Atleta Desconocido';
-                const { count: totalRutinas } = await supabaseClient.from('rutinas_programadas').select('*', { count: 'exact', head: true }).eq('plan_id', plan.id);
-                const { count: completadas } = await supabaseClient.from('registros_ejecucion').select('*, rutinas_programadas!inner(plan_id)', { count: 'exact', head: true }).eq('rutinas_programadas.plan_id', plan.id).eq('completado', true);
+                const planesUnicos = [];
+                const atletasVistos = new Set();
+                for (const plan of planes) {
+                    if (!atletasVistos.has(plan.atleta_id)) {
+                        atletasVistos.add(plan.atleta_id);
+                        planesUnicos.push(plan);
+                    }
+                }
 
-                const porcentaje = totalRutinas ? Math.round((completadas / totalRutinas) * 100) : 0;
+                for (const plan of planesUnicos) {
+                    const atletaNombre = plan.perfiles ? plan.perfiles.nombre : 'Atleta';
+                    const { count: totalRutinas } = await supabaseClient.from('rutinas_programadas').select('*', { count: 'exact', head: true }).eq('plan_id', plan.id);
+                    const { count: completadas } = await supabaseClient.from('registros_ejecucion').select('*, rutinas_programadas!inner(plan_id)', { count: 'exact', head: true }).eq('rutinas_programadas.plan_id', plan.id).eq('completado', true);
 
-                list.innerHTML += `
-                    <div onclick="abrirDetalleAtleta('${plan.id}', '${atletaNombre}', '${plan.titulo}')" class="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer shadow-lg active:scale-95">
-                        <div class="flex justify-between items-center mb-3 pointer-events-none">
-                            <div><h3 class="font-black text-lg text-white">${atletaNombre}</h3><p class="text-xs text-orange-500 uppercase font-bold">${plan.titulo}</p></div>
-                            <div class="text-right"><span class="text-2xl font-black text-gray-300">${porcentaje}%</span></div>
+                    const porcentaje = totalRutinas ? Math.round((completadas / totalRutinas) * 100) : 0;
+
+                    list.innerHTML += `
+                        <div onclick="abrirDetalleAtleta('${plan.id}', '${atletaNombre}', '${plan.titulo}')" class="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer shadow-lg active:scale-95">
+                            <div class="flex justify-between items-center mb-3 pointer-events-none">
+                                <div><h3 class="font-black text-lg text-white">${atletaNombre}</h3><p class="text-xs text-orange-500 uppercase font-bold">${plan.titulo}</p></div>
+                                <div class="text-right"><span class="text-2xl font-black text-gray-300">${porcentaje}%</span></div>
+                            </div>
+                            <div class="w-full bg-black rounded-full h-2 pointer-events-none">
+                                <div class="bg-green-500 h-2 rounded-full transition-all" style="width: ${porcentaje}%"></div>
+                            </div>
+                            <div class="flex justify-between items-center mt-3 pointer-events-none">
+                                <span class="text-[9px] text-gray-500 uppercase"><i class="fas fa-search-plus mr-1"></i> Ver detalles</span>
+                                <span class="text-[10px] text-gray-400 font-bold">${completadas || 0} de ${totalRutinas || 0} listas</span>
+                            </div>
                         </div>
-                        <div class="w-full bg-black rounded-full h-2 pointer-events-none">
-                            <div class="bg-green-500 h-2 rounded-full transition-all" style="width: ${porcentaje}%"></div>
-                        </div>
-                        <div class="flex justify-between items-center mt-3 pointer-events-none">
-                            <span class="text-[9px] text-gray-500 uppercase"><i class="fas fa-search-plus mr-1"></i> Toque para detalles</span>
-                            <span class="text-[10px] text-gray-400 font-bold">${completadas || 0} de ${totalRutinas || 0} completadas</span>
-                        </div>
-                    </div>
-                `;
+                    `;
+                }
+            } catch(e) {
+                console.error("Error cargando dashboard:", e);
+                list.innerHTML = '<p class="text-red-500 text-center text-sm">Error al cargar datos.</p>';
             }
             document.getElementById('coach-loading').classList.add('hidden');
         }
@@ -317,61 +349,57 @@
             document.getElementById('detail-loading').classList.remove('hidden');
             document.getElementById('athlete-detail-modal').classList.remove('hidden');
 
-            const { data: rutinas } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planId).order('semana', { ascending: true }).order('id', { ascending: true });
-            const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, tiempo_app, garmin_dist, garmin_pace, notas').eq('completado', true);
+            try {
+                const { data: rutinas } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planId).order('semana', { ascending: true }).order('id', { ascending: true });
+                const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, tiempo_app, garmin_dist, garmin_pace, notas').eq('completado', true);
 
-            document.getElementById('detail-loading').classList.add('hidden');
-
-            if (!rutinas || rutinas.length === 0) {
-                document.getElementById('detail-content').innerHTML = '<p class="text-gray-500 text-center py-4">No hay rutinas asignadas.</p>';
-                return;
-            }
-
-            const completadasMap = {};
-            if (ejecuciones) ejecuciones.forEach(ej => completadasMap[ej.rutina_id] = ej);
-
-            let html = '';
-            let currentGroupWeek = 0;
-
-            rutinas.forEach(r => {
-                if (r.semana !== currentGroupWeek) {
-                    currentGroupWeek = r.semana;
-                    html += `<div class="mt-6 mb-2 flex items-center gap-2"><div class="h-px bg-gray-800 flex-1"></div><span class="text-[10px] font-black uppercase tracking-widest text-gray-500">SEMANA ${currentGroupWeek}</span><div class="h-px bg-gray-800 flex-1"></div></div>`;
+                if (!rutinas || rutinas.length === 0) {
+                    document.getElementById('detail-content').innerHTML = '<p class="text-gray-500 text-center py-4">No hay rutinas asignadas.</p>';
+                    document.getElementById('detail-loading').classList.add('hidden');
+                    return;
                 }
 
-                const registro = completadasMap[r.id];
-                const isCompleted = registro && registro.completado;
-                const borderColor = isCompleted ? 'border-green-500/50 bg-[#064e3b]/30' : 'border-gray-800 bg-black';
-                const icon = isCompleted ? '<i class="fas fa-check-circle text-green-500 text-xl"></i>' : '<i class="far fa-circle text-gray-700 text-xl"></i>';
+                const completadasMap = {};
+                if (ejecuciones) ejecuciones.forEach(ej => completadasMap[ej.rutina_id] = ej);
 
-                let extraDataHtml = '';
-                if (isCompleted && (registro.garmin_dist || registro.garmin_pace || registro.notas)) {
-                    extraDataHtml += `<div class="mt-3 pt-3 border-t border-gray-700/50 space-y-1">`;
-                    if(registro.garmin_dist || registro.garmin_pace) {
-                        extraDataHtml += `<p class="text-[10px] text-gray-300"><i class="fas fa-watch-fitness text-orange-500 mr-1"></i> ${registro.garmin_dist || '--'} mi | Paso: ${registro.garmin_pace || '--'}</p>`;
-                    }
-                    if(registro.notas) {
-                        extraDataHtml += `<p class="text-[10px] text-gray-400 italic"><i class="fas fa-comment-alt text-blue-500 mr-1"></i> "${registro.notas}"</p>`;
-                    }
-                    extraDataHtml += `</div>`;
-                }
+                let html = '';
+                let currentGroupWeek = 0;
 
-                html += `
-                    <div class="p-4 border rounded-2xl ${borderColor}">
-                        <div class="flex items-center justify-between">
-                            <div class="pr-4">
-                                <span class="text-[9px] ${isCompleted ? 'text-green-400' : 'text-orange-500'} font-bold uppercase block">${r.dia_semana}</span>
-                                <h4 class="text-sm font-black text-gray-100">${r.titulo}</h4>
-                                <p class="text-[10px] text-gray-500 leading-tight mt-1">${r.detalle}</p>
+                rutinas.forEach(r => {
+                    if (r.semana !== currentGroupWeek) {
+                        currentGroupWeek = r.semana;
+                        html += `<div class="mt-6 mb-2 flex items-center gap-2"><div class="h-px bg-gray-800 flex-1"></div><span class="text-[10px] font-black uppercase tracking-widest text-gray-500">SEMANA ${currentGroupWeek}</span><div class="h-px bg-gray-800 flex-1"></div></div>`;
+                    }
+
+                    const registro = completadasMap[r.id];
+                    const isCompleted = registro && registro.completado;
+                    const borderColor = isCompleted ? 'border-green-500/50 bg-[#064e3b]/30' : 'border-gray-800 bg-black';
+                    const icon = isCompleted ? '<i class="fas fa-check-circle text-green-500 text-xl"></i>' : '<i class="far fa-circle text-gray-700 text-xl"></i>';
+
+                    let extraDataHtml = '';
+                    if (isCompleted && (registro.garmin_dist || registro.garmin_pace || registro.notas)) {
+                        extraDataHtml += `<div class="mt-3 pt-3 border-t border-gray-700/50 space-y-1">`;
+                        if(registro.garmin_dist || registro.garmin_pace) extraDataHtml += `<p class="text-[10px] text-gray-300"><i class="fas fa-watch-fitness text-orange-500 mr-1"></i> ${registro.garmin_dist || '--'} mi | Paso: ${registro.garmin_pace || '--'}</p>`;
+                        if(registro.notas) extraDataHtml += `<p class="text-[10px] text-gray-400 italic"><i class="fas fa-comment-alt text-blue-500 mr-1"></i> "${registro.notas}"</p>`;
+                        extraDataHtml += `</div>`;
+                    }
+
+                    html += `
+                        <div class="p-4 border rounded-2xl ${borderColor}">
+                            <div class="flex items-center justify-between">
+                                <div class="pr-4"><span class="text-[9px] ${isCompleted ? 'text-green-400' : 'text-orange-500'} font-bold uppercase block">${r.dia_semana}</span><h4 class="text-sm font-black text-gray-100">${r.titulo}</h4><p class="text-[10px] text-gray-500 leading-tight mt-1">${r.detalle}</p></div>
+                                <div class="flex-shrink-0">${icon}</div>
                             </div>
-                            <div class="flex-shrink-0">${icon}</div>
+                            ${extraDataHtml}
                         </div>
-                        ${extraDataHtml}
-                    </div>
-                `;
-            });
+                    `;
+                });
 
-            document.getElementById('detail-content').innerHTML = html;
+                document.getElementById('detail-content').innerHTML = html;
+            } catch(e) {
+                console.error("Error al cargar detalles:", e);
+            }
+            document.getElementById('detail-loading').classList.add('hidden');
         }
 
         // ==========================================
@@ -381,35 +409,35 @@
             document.getElementById('cloud-loading').classList.remove('hidden');
             document.getElementById('entrenamiento-container').classList.add('hidden');
 
-            const { data: planActivo } = await supabaseClient.from('planes_entrenamiento').select('id, titulo').eq('atleta_id', userId).eq('estado', 'activo').order('fecha_creacion', { ascending: false }).limit(1).single();
-            if (!planActivo) {
-                document.getElementById('cloud-loading').innerHTML = "No tienes un plan activo asignado.";
-                return;
+            try {
+                const { data: planActivo } = await supabaseClient.from('planes_entrenamiento').select('id, titulo').eq('atleta_id', userId).eq('estado', 'activo').order('fecha_creacion', { ascending: false }).limit(1).single();
+                
+                if (!planActivo) {
+                    document.getElementById('cloud-loading').innerHTML = "No tienes un plan activo asignado.";
+                    return;
+                }
+                
+                document.getElementById('plan-title').innerText = planActivo.titulo;
+
+                const { data: rutinas } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planActivo.id).order('id', { ascending: true });
+                const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, id, garmin_dist, garmin_pace, notas');
+                
+                registrosCloud = {};
+                if(ejecuciones) ejecuciones.forEach(ej => registrosCloud[ej.rutina_id] = { completado: ej.completado, record_id: ej.id, dist: ej.garmin_dist, pace: ej.garmin_pace, notas: ej.notas });
+
+                let planFormateado = {};
+                for(let i=1; i<=8; i++) planFormateado[i] = [];
+                if(rutinas) rutinas.forEach(r => planFormateado[r.semana].push({ id_db: r.id, dia: r.dia_semana, tarea: r.titulo, detalle: r.detalle }));
+
+                activePlanCloud = planFormateado;
+                
+                document.getElementById('cloud-loading').classList.add('hidden');
+                document.getElementById('entrenamiento-container').classList.remove('hidden');
+                loadWeek(1);
+            } catch(e) {
+                console.error("Error al descargar plan:", e);
+                document.getElementById('cloud-loading').innerHTML = "Error de conexión. Intenta recargar la página.";
             }
-            document.getElementById('plan-title').innerText = planActivo.titulo;
-
-            const { data: rutinas } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planActivo.id).order('id', { ascending: true });
-            const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, id, garmin_dist, garmin_pace, notas');
-            
-            registrosCloud = {};
-            if(ejecuciones) {
-                ejecuciones.forEach(ej => registrosCloud[ej.rutina_id] = { 
-                    completado: ej.completado, 
-                    record_id: ej.id,
-                    dist: ej.garmin_dist,
-                    pace: ej.garmin_pace,
-                    notas: ej.notas
-                });
-            }
-
-            let planFormateado = {};
-            for(let i=1; i<=8; i++) planFormateado[i] = [];
-            if(rutinas) rutinas.forEach(r => planFormateado[r.semana].push({ id_db: r.id, dia: r.dia_semana, tarea: r.titulo, detalle: r.detalle }));
-
-            activePlanCloud = planFormateado;
-            document.getElementById('cloud-loading').classList.add('hidden');
-            document.getElementById('entrenamiento-container').classList.remove('hidden');
-            loadWeek(1);
         }
 
         function loadWeek(w, ev = null) {
@@ -425,7 +453,7 @@
                 const isChecked = registro ? registro.completado : false;
                 
                 list.innerHTML += `
-                    <div class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 transition-all ${isChecked ? 'completed' : ''}">
+                    <div class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 transition-colors ${isChecked ? 'completed' : ''}">
                         <div class="flex-1 mr-4">
                             <span class="text-[10px] text-orange-500 font-black italic uppercase">${item.dia}</span>
                             <h3 class="text-lg font-black">${item.tarea}</h3>
@@ -438,9 +466,12 @@
                 if(selector) selector.innerHTML += `<option value="${item.id_db}">${item.dia} - ${item.tarea}</option>`;
             });
 
-            document.getElementById('garmin-dist').value = '';
-            document.getElementById('garmin-pace').value = '';
-            document.getElementById('coach-notes').value = '';
+            // Solo limpiamos los campos si el usuario cambió de semana manualmente
+            if(ev) {
+                document.getElementById('garmin-dist').value = '';
+                document.getElementById('garmin-pace').value = '';
+                document.getElementById('coach-notes').value = '';
+            }
 
             document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('tab-active'));
             const tabs = document.querySelectorAll('.week-tab');
@@ -472,7 +503,11 @@
                     if(data) registrosCloud[rutinaId] = { completado: isChecked, record_id: data.id };
                 }
                 setTimeout(() => statusIndicator.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> Sincronizado', 500);
-            } catch (error) { statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500"></i> Error'; }
+            } catch (error) { 
+                statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500"></i> Error'; 
+                checkboxElement.checked = !isChecked; // Revertir visualmente si falla
+                checkboxElement.parentElement.classList.toggle('completed', !isChecked);
+            }
         }
 
         async function guardarDetalles() {
@@ -482,7 +517,7 @@
             const notes = document.getElementById('coach-notes').value;
             const btn = document.getElementById('save-details-btn');
 
-            if(!rutinaId) { alert("Por favor selecciona un entrenamiento del menú."); return; }
+            if(!rutinaId) { alert("Por favor selecciona un entrenamiento del menú desplegable."); return; }
 
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
             const registroPrevio = registrosCloud[rutinaId];
@@ -497,7 +532,7 @@
                     if(data) registrosCloud[rutinaId] = { completado: true, record_id: data.id, dist: distNum, pace: pace, notas: notes };
                 }
                 
-                loadWeek(currentWeek);
+                loadWeek(currentWeek); // Refresca los checkmarks visualmente
                 btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 btn.classList.add('bg-green-600');
                 btn.innerHTML = '<i class="fas fa-check"></i> ¡Guardado!';
@@ -505,13 +540,9 @@
             } catch(e) { btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error al guardar'; }
         }
 
-        // RESTAURADO: Función de WhatsApp
         function sendToCoachWhatsApp() {
             let atletaName = document.getElementById('user-display-name').innerText;
-            let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n`;
-            report += `*Atleta:* ${atletaName}\n`;
-            report += `*Semana:* ${currentWeek}\n\n`;
-            report += `*ESTADO DE RUTINAS:*\n`;
+            let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n*Atleta:* ${atletaName}\n*Semana:* ${currentWeek}\n\n*ESTADO DE RUTINAS:*\n`;
 
             (activePlanCloud[currentWeek] || []).forEach((item) => {
                 const registro = registrosCloud[item.id_db];
@@ -519,8 +550,6 @@
                 const statusIcon = isChecked ? '✅' : '❌';
                 
                 report += `${statusIcon} ${item.dia}: ${item.tarea}\n`;
-                
-                // Si completó y tiene info de Garmin, la añadimos al reporte
                 if (isChecked && (registro.dist || registro.pace)) {
                     report += `   └ ⌚ ${registro.dist || '--'} mi | ⚡ ${registro.pace || '--'} /mi\n`;
                 }
@@ -544,6 +573,7 @@
         function resetTimer() { clearInterval(timer); isRunning = false; seconds = 0; document.getElementById('display').innerText = "00:00:00"; document.getElementById('startBtn').innerHTML = '<i class="fas fa-play text-white"></i>';}
         function toggleGlossary() { document.getElementById('glossary-modal').classList.toggle('hidden'); }
         
+        // Ejecución inicial segura
         window.onload = () => { if(supabaseClient) checkSession(); };
     </script>
 </body>
