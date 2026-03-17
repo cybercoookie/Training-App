@@ -46,31 +46,24 @@
             <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
             
             <div class="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
-                <div>
-                    <span class="font-bold text-white">Caco (X:Y):</span> 
-                    <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. El primer número son los minutos corriendo, el segundo los minutos caminando. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p>
-                </div>
-                <div>
-                    <span class="font-bold text-white">Regenerativo / Suave:</span> 
-                    <p class="text-gray-400 text-xs mt-1">Trote muy lento a ritmo conversacional. Sirve para recuperar las piernas y sumar volumen sin fatiga.</p>
-                </div>
-                <div>
-                    <span class="font-bold text-white">Intervalos:</span> 
-                    <p class="text-gray-400 text-xs mt-1">Segmentos de carrera más rápida alternados con periodos de recuperación (caminata o trote súper suave).</p>
-                </div>
-                <div>
-                    <span class="font-bold text-white">Tempo:</span> 
-                    <p class="text-gray-400 text-xs mt-1">Ritmo de carrera constante. Es un paso "cómodamente duro" donde te cuesta hablar en oraciones completas.</p>
-                </div>
-                <div>
-                    <span class="font-bold text-white">Larga / Long Run:</span> 
-                    <p class="text-gray-400 text-xs mt-1">El entrenamiento más importante. No importa la velocidad, el objetivo es acostumbrar al cuerpo a estar tiempo en movimiento.</p>
-                </div>
-                <div>
-                    <span class="font-bold text-white">Taper (Afinar):</span> 
-                    <p class="text-gray-400 text-xs mt-1">Reducción del volumen de entrenamiento los días antes de la carrera para llegar con las piernas frescas al 100%.</p>
-                </div>
+                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p></div>
+                <div><span class="font-bold text-white">Regenerativo:</span> <p class="text-gray-400 text-xs mt-1">Trote muy lento a ritmo conversacional. Sirve para recuperar.</p></div>
+                <div><span class="font-bold text-white">Intervalos:</span> <p class="text-gray-400 text-xs mt-1">Segmentos rápidos alternados con caminata o trote suave.</p></div>
+                <div><span class="font-bold text-white">Tempo:</span> <p class="text-gray-400 text-xs mt-1">Ritmo constante "cómodamente duro".</p></div>
+                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. No importa la velocidad, sino el tiempo en pies.</p></div>
+                <div><span class="font-bold text-white">Taper (Afinar):</span> <p class="text-gray-400 text-xs mt-1">Reducción del volumen para llegar fresco a la carrera.</p></div>
             </div>
+        </div>
+    </div>
+
+    <div id="celebration-modal" class="hidden fixed inset-0 z-50 modal-glass flex items-center justify-center p-4">
+        <div class="bg-gray-900 border border-orange-500 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center relative overflow-hidden">
+            <div class="text-6xl mb-4 animate-bounce">🏆</div>
+            <h2 class="text-2xl font-black text-orange-500 uppercase italic mb-2">¡LO LOGRASTE!</h2>
+            <p class="text-gray-300 text-sm mb-6">Camila, has completado con éxito todas las sesiones de este ciclo. El trabajo duro ya está hecho, ¡ahora ve a conquistar esa medalla!</p>
+            <button onclick="closeCelebration()" class="w-full bg-orange-600 hover:bg-orange-700 p-4 rounded-xl font-bold text-white shadow-lg transition active:scale-95">
+                ¡Estoy Lista! 🏃‍♀️💨
+            </button>
         </div>
     </div>
 
@@ -90,11 +83,14 @@
         </section>
 
         <div class="flex overflow-x-auto gap-6 border-b border-gray-900 pb-3 no-scrollbar">
-            <script>
-                for(let i=1; i<=8; i++) {
-                    document.write(`<button onclick="loadWeek(${i}, event)" class="week-tab px-2 py-1 font-black text-xs">${i==8?'🏁':'S'+i}</button>`);
-                }
-            </script>
+            <button onclick="loadWeek(1, event)" class="week-tab px-2 py-1 font-black text-xs">S1</button>
+            <button onclick="loadWeek(2, event)" class="week-tab px-2 py-1 font-black text-xs">S2</button>
+            <button onclick="loadWeek(3, event)" class="week-tab px-2 py-1 font-black text-xs">S3</button>
+            <button onclick="loadWeek(4, event)" class="week-tab px-2 py-1 font-black text-xs">S4</button>
+            <button onclick="loadWeek(5, event)" class="week-tab px-2 py-1 font-black text-xs">S5</button>
+            <button onclick="loadWeek(6, event)" class="week-tab px-2 py-1 font-black text-xs">S6</button>
+            <button onclick="loadWeek(7, event)" class="week-tab px-2 py-1 font-black text-xs">S7</button>
+            <button onclick="loadWeek(8, event)" class="week-tab px-2 py-1 font-black text-xs">🏁</button>
         </div>
 
         <div id="training-list" class="space-y-4"></div>
@@ -136,207 +132,208 @@
     </main>
 
     <script>
-
-        // 1. Configuración de Supabase
-    const supabaseUrl = 'https://ihwzflblfeayyjuaizrx.supabase.co';
-    const supabaseKey = 'sb_publishable_jRv8RmKitJkUsSRTmLto9A_nJtuQTI-';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-    // 2. Prueba de Conexión (Opcional, para verificar que funciona)
-    async function probarConexion() {
-        console.log("Intentando conectar con Supabase...");
-        // Intentamos leer la tabla de perfiles (fallará intencionalmente por el RLS, lo cual es bueno)
-        const { data, error } = await supabase.from('perfiles').select('*').limit(1);
-        
-        if (error) {
-            console.log("Conexión exitosa al servidor, pero bloqueada por seguridad RLS (¡Esto es correcto!):", error.message);
-        } else {
-            console.log("Conectado:", data);
+        // 1. Inicialización segura de Supabase
+        let supabase = null;
+        try {
+            if (window.supabase) {
+                const supabaseUrl = 'https://ihwzflblfeayyjuaizrx.supabase.co';
+                const supabaseKey = 'sb_publishable_jRv8RmKitJkUsSRTmLto9A_nJtuQTI-';
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+                probarConexion();
+            } else {
+                console.warn("Supabase no cargó desde el CDN. La app funcionará localmente.");
+            }
+        } catch (err) {
+            console.error("Error al iniciar Supabase:", err);
         }
-    }
 
-    // Llamamos la prueba al cargar la página
-    probarConexion();
-    const MASTER_PASSWORD = "JS2026";
-    
-    const defaultPlan = {
-        1: [
-            { dia: "Lunes", tarea: "Fuerza A", detalle: "Sentadilla/Puente (2x15)" },
-            { dia: "Martes", tarea: "2.5 mi Carrera", detalle: "Caco 3:1 Suave" },
-            { dia: "Viernes", tarea: "2 mi Intervalos", detalle: "Caco 2:1 Ritmo 14:00" },
-            { dia: "Sábado", tarea: "3 mi Larga", detalle: "Caco 4:1 Paso Libre" }
-        ],
-        2: [
-            { dia: "Lunes", tarea: "Fuerza B", detalle: "Zancadas/Core (2x15)" },
-            { dia: "Martes", tarea: "2.5 mi Carrera", detalle: "Caco 4:1 Controlado" },
-            { dia: "Viernes", tarea: "2.5 mi Intervalos", detalle: "Caco 3:1 Ritmo 13:45" },
-            { dia: "Sábado", tarea: "3.5 mi Larga", detalle: "Caco 4:1 Resistencia" }
-        ],
-        3: [
-            { dia: "Lunes", tarea: "Fuerza A", detalle: "Aumentar a 3 series" },
-            { dia: "Martes", tarea: "3 mi Carrera", detalle: "Caco 5:1 Aeróbico" },
-            { dia: "Viernes", tarea: "2.5 mi Intervalos", detalle: "Caco 4:1 Ritmo 13:30" },
-            { dia: "Sábado", tarea: "4 mi Larga", detalle: "Caco 5:1 (Hito)" }
-        ],
-        4: [
-            { dia: "Martes", tarea: "2 mi Suave", detalle: "Descarga pre-test" },
-            { dia: "Sábado", tarea: "TEST 5K (3.1 mi)", detalle: "Sin parar o Caco 10:1" }
-        ],
-        5: [
-            { dia: "Martes", tarea: "2 mi Regenerativo", detalle: "Semana de recuperación" },
-            { dia: "Sábado", tarea: "3 mi Suave", detalle: "Trote muy ligero" }
-        ],
-        6: [
-            { dia: "Martes", tarea: "3.5 mi Carrera", detalle: "Caco 8:1" },
-            { dia: "Viernes", tarea: "3 mi Tempo", detalle: "Caco 5:1 Progresivo" },
-            { dia: "Sábado", tarea: "5 mi Larga", detalle: "Base Mental" }
-        ],
-        7: [
-            { dia: "Martes", tarea: "4 mi Carrera", detalle: "Caco 10:1" },
-            { dia: "Viernes", tarea: "3 mi Ritmo", detalle: "2mi trote / 1mi rápido" },
-            { dia: "Sábado", tarea: "5.5 mi Larga", detalle: "Pico de volumen" }
-        ],
-        8: [
-            { dia: "Martes", tarea: "2.5 mi Suave", detalle: "Taper (Afinar)" },
-            { dia: "Jueves", tarea: "1.5 mi Movilidad", detalle: "Activación final" },
-            { dia: "Sábado", tarea: "META 10K (6.2 mi)", detalle: "¡Día de Gloria, Camila!" }
-        ]
-    };
-
-    let currentWeek = 1;
-    let adminMode = false;
-    let activePlan = JSON.parse(localStorage.getItem('js_plan_v8')) || JSON.parse(JSON.stringify(defaultPlan));
-
-    function savePlan() { localStorage.setItem('js_plan_v8', JSON.stringify(activePlan)); }
-    
-    // GUARDAR NOTAS POR SEMANA DINÁMICAMENTE
-    function saveNotes() {
-        const notes = document.getElementById('coach-notes').value;
-        localStorage.setItem(`notes-w${currentWeek}`, notes);
-    }
-
-    function toggleGlossary() { document.getElementById('glossary-modal').classList.toggle('hidden'); }
-    function closeCelebration() { document.getElementById('celebration-modal').classList.add('hidden'); }
-
-    function requestAdminAccess() {
-        const pass = prompt("Password Coach Santiago:");
-        if (pass === MASTER_PASSWORD) {
-            adminMode = !adminMode;
-            document.getElementById('admin-panel').classList.toggle('hidden');
-            loadWeek(currentWeek);
-        } else if (pass !== null) alert("Acceso Denegado.");
-    }
-
-    function fullReset() {
-        if(confirm("¿Seguro que deseas resetear al plan maestro original?")) {
-            activePlan = JSON.parse(JSON.stringify(defaultPlan));
-            savePlan();
-            loadWeek(1);
+        async function probarConexion() {
+            if(!supabase) return;
+            const { data, error } = await supabase.from('perfiles').select('*').limit(1);
+            if (error) console.log("Conectado a Supabase (Seguridad RLS activa):", error.message);
+            else console.log("Conectado:", data);
         }
-    }
 
-    function loadWeek(w, ev = null) {
-        currentWeek = w;
-        const list = document.getElementById('training-list');
-        list.innerHTML = '';
+        const MASTER_PASSWORD = "JS2026";
         
-        // Cargar rutinas de la semana
-        (activePlan[w] || []).forEach((item, index) => {
-            const id = `w${w}d${index}`;
-            const isChecked = localStorage.getItem(id) === 'true';
-            list.innerHTML += `
-                <div class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 transition-all ${isChecked ? 'completed' : ''}">
-                    <div class="flex-1 mr-4">
-                        ${adminMode ? 
-                            `<input type="text" value="${item.dia}" onchange="editTask(${index}, 'dia', this.value)" class="text-orange-500 text-[10px] font-black uppercase">
-                             <input type="text" value="${item.tarea}" onchange="editTask(${index}, 'tarea', this.value)" class="text-lg font-black block bg-transparent">
-                             <input type="text" value="${item.detalle}" onchange="editTask(${index}, 'detalle', this.value)" class="text-xs text-gray-500 block bg-transparent">
-                             <button onclick="deleteTask(${index})" class="text-red-500 text-[9px] mt-2 font-bold uppercase">[Eliminar]</button>` 
-                            : 
-                            `<span class="text-[10px] text-orange-500 font-black italic uppercase">${item.dia}</span>
-                             <h3 class="text-lg font-black">${item.tarea}</h3>
-                             <p class="text-xs text-gray-400">${item.detalle}</p>`
-                        }
+        const defaultPlan = {
+            1: [
+                { dia: "Lunes", tarea: "Fuerza A", detalle: "Sentadilla/Puente (2x15)" },
+                { dia: "Martes", tarea: "2.5 mi Carrera", detalle: "Caco 3:1 Suave" },
+                { dia: "Viernes", tarea: "2 mi Intervalos", detalle: "Caco 2:1 Ritmo 14:00" },
+                { dia: "Sábado", tarea: "3 mi Larga", detalle: "Caco 4:1 Paso Libre" }
+            ],
+            2: [
+                { dia: "Lunes", tarea: "Fuerza B", detalle: "Zancadas/Core (2x15)" },
+                { dia: "Martes", tarea: "2.5 mi Carrera", detalle: "Caco 4:1 Controlado" },
+                { dia: "Viernes", tarea: "2.5 mi Intervalos", detalle: "Caco 3:1 Ritmo 13:45" },
+                { dia: "Sábado", tarea: "3.5 mi Larga", detalle: "Caco 4:1 Resistencia" }
+            ],
+            3: [
+                { dia: "Lunes", tarea: "Fuerza A", detalle: "Aumentar a 3 series" },
+                { dia: "Martes", tarea: "3 mi Carrera", detalle: "Caco 5:1 Aeróbico" },
+                { dia: "Viernes", tarea: "2.5 mi Intervalos", detalle: "Caco 4:1 Ritmo 13:30" },
+                { dia: "Sábado", tarea: "4 mi Larga", detalle: "Caco 5:1 (Hito)" }
+            ],
+            4: [
+                { dia: "Martes", tarea: "2 mi Suave", detalle: "Descarga pre-test" },
+                { dia: "Sábado", tarea: "TEST 5K (3.1 mi)", detalle: "Sin parar o Caco 10:1" }
+            ],
+            5: [
+                { dia: "Martes", tarea: "2 mi Regenerativo", detalle: "Semana de recuperación" },
+                { dia: "Sábado", tarea: "3 mi Suave", detalle: "Trote muy ligero" }
+            ],
+            6: [
+                { dia: "Martes", tarea: "3.5 mi Carrera", detalle: "Caco 8:1" },
+                { dia: "Viernes", tarea: "3 mi Tempo", detalle: "Caco 5:1 Progresivo" },
+                { dia: "Sábado", tarea: "5 mi Larga", detalle: "Base Mental" }
+            ],
+            7: [
+                { dia: "Martes", tarea: "4 mi Carrera", detalle: "Caco 10:1" },
+                { dia: "Viernes", tarea: "3 mi Ritmo", detalle: "2mi trote / 1mi rápido" },
+                { dia: "Sábado", tarea: "5.5 mi Larga", detalle: "Pico de volumen" }
+            ],
+            8: [
+                { dia: "Martes", tarea: "2.5 mi Suave", detalle: "Taper (Afinar)" },
+                { dia: "Jueves", tarea: "1.5 mi Movilidad", detalle: "Activación final" },
+                { dia: "Sábado", tarea: "META 10K (6.2 mi)", detalle: "¡Día de Gloria, Camila!" }
+            ]
+        };
+
+        let currentWeek = 1;
+        let adminMode = false;
+        let activePlan = JSON.parse(localStorage.getItem('js_plan_v9')) || JSON.parse(JSON.stringify(defaultPlan));
+
+        function savePlan() { localStorage.setItem('js_plan_v9', JSON.stringify(activePlan)); }
+        
+        function saveNotes() {
+            const notes = document.getElementById('coach-notes').value;
+            localStorage.setItem(`notes-w${currentWeek}`, notes);
+        }
+
+        function toggleGlossary() { document.getElementById('glossary-modal').classList.toggle('hidden'); }
+        function closeCelebration() { document.getElementById('celebration-modal').classList.add('hidden'); }
+
+        function requestAdminAccess() {
+            const pass = prompt("Password Coach Santiago:");
+            if (pass === MASTER_PASSWORD) {
+                adminMode = !adminMode;
+                document.getElementById('admin-panel').classList.toggle('hidden');
+                loadWeek(currentWeek);
+            } else if (pass !== null) alert("Acceso Denegado.");
+        }
+
+        function fullReset() {
+            if(confirm("¿Seguro que deseas resetear al plan maestro original?")) {
+                activePlan = JSON.parse(JSON.stringify(defaultPlan));
+                savePlan();
+                loadWeek(1);
+            }
+        }
+
+        function loadWeek(w, ev = null) {
+            currentWeek = w;
+            const list = document.getElementById('training-list');
+            list.innerHTML = '';
+            
+            (activePlan[w] || []).forEach((item, index) => {
+                const id = `w${w}d${index}`;
+                const isChecked = localStorage.getItem(id) === 'true';
+                list.innerHTML += `
+                    <div class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 transition-all ${isChecked ? 'completed' : ''}">
+                        <div class="flex-1 mr-4">
+                            ${adminMode ? 
+                                `<input type="text" value="${item.dia}" onchange="editTask(${index}, 'dia', this.value)" class="text-orange-500 text-[10px] font-black uppercase">
+                                 <input type="text" value="${item.tarea}" onchange="editTask(${index}, 'tarea', this.value)" class="text-lg font-black block bg-transparent">
+                                 <input type="text" value="${item.detalle}" onchange="editTask(${index}, 'detalle', this.value)" class="text-xs text-gray-500 block bg-transparent">
+                                 <button onclick="deleteTask(${index})" class="text-red-500 text-[9px] mt-2 font-bold uppercase">[Eliminar]</button>` 
+                                : 
+                                `<span class="text-[10px] text-orange-500 font-black italic uppercase">${item.dia}</span>
+                                 <h3 class="text-lg font-black">${item.tarea}</h3>
+                                 <p class="text-xs text-gray-400">${item.detalle}</p>`
+                            }
+                        </div>
+                        ${!adminMode ? `<input type="checkbox" onchange="toggleTask('${id}', this, event)" ${isChecked ? 'checked' : ''} class="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer">` : ''}
                     </div>
-                    ${!adminMode ? `<input type="checkbox" onchange="toggleTask('${id}', this, event)" ${isChecked ? 'checked' : ''} class="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700">` : ''}
-                </div>
-            `;
-        });
-
-        // Cargar las notas específicas de esta semana
-        document.getElementById('coach-notes').value = localStorage.getItem(`notes-w${w}`) || "";
-
-        // UI Tabs
-        document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('tab-active'));
-        if(ev && ev.target) ev.target.classList.add('tab-active');
-        else document.querySelectorAll('.week-tab')[w-1].classList.add('tab-active');
-    }
-
-    function editTask(index, field, value) { activePlan[currentWeek][index][field] = value; savePlan(); }
-    function addNewTask() {
-        if(!activePlan[currentWeek]) activePlan[currentWeek] = [];
-        activePlan[currentWeek].push({ dia: "DÍA NUEVO", tarea: "EJERCICIO", detalle: "Distancia/Repeticiones" });
-        savePlan();
-        loadWeek(currentWeek);
-    }
-    function deleteTask(index) { activePlan[currentWeek].splice(index, 1); savePlan(); loadWeek(currentWeek); }
-
-    function toggleTask(id, el, e) {
-        e.stopPropagation();
-        localStorage.setItem(id, el.checked);
-        el.parentElement.classList.toggle('completed');
-
-        // VERIFICACIÓN SEMANA 8
-        if (currentWeek === 8 && el.checked) {
-            let allCompleted = true;
-            (activePlan[8] || []).forEach((_, idx) => {
-                if (localStorage.getItem(`w8d${idx}`) !== 'true') allCompleted = false;
+                `;
             });
-            if (allCompleted) document.getElementById('celebration-modal').classList.remove('hidden');
+
+            document.getElementById('coach-notes').value = localStorage.getItem(`notes-w${w}`) || "";
+
+            document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('tab-active'));
+            const tabs = document.querySelectorAll('.week-tab');
+            if (ev && ev.target) {
+                ev.target.classList.add('tab-active');
+            } else if (tabs[w-1]) {
+                tabs[w-1].classList.add('tab-active');
+            }
         }
-    }
 
-    // NUEVO REPORTE SEMANAL
-    function sendToCoach() {
-        // Guardar las notas antes de enviar
-        saveNotes();
-        const notes = document.getElementById('coach-notes').value || "Sin comentarios adicionales.";
+        function editTask(index, field, value) { activePlan[currentWeek][index][field] = value; savePlan(); }
+        function addNewTask() {
+            if(!activePlan[currentWeek]) activePlan[currentWeek] = [];
+            activePlan[currentWeek].push({ dia: "DÍA NUEVO", tarea: "EJERCICIO", detalle: "Distancia/Repeticiones" });
+            savePlan();
+            loadWeek(currentWeek);
+        }
+        function deleteTask(index) { activePlan[currentWeek].splice(index, 1); savePlan(); loadWeek(currentWeek); }
+
+        function toggleTask(id, el, e) {
+            e.stopPropagation();
+            localStorage.setItem(id, el.checked);
+            el.parentElement.classList.toggle('completed');
+
+            // VERIFICACIÓN DE SEMANA 8
+            if (currentWeek === 8 && el.checked) {
+                let allCompleted = true;
+                (activePlan[8] || []).forEach((_, idx) => {
+                    if (localStorage.getItem(`w8d${idx}`) !== 'true') allCompleted = false;
+                });
+                
+                const modal = document.getElementById('celebration-modal');
+                if (allCompleted && modal) {
+                    modal.classList.remove('hidden');
+                }
+            }
+        }
+
+        function sendToCoach() {
+            saveNotes();
+            const notes = document.getElementById('coach-notes').value || "Sin comentarios adicionales.";
+            
+            let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n`;
+            report += `*Atleta:* Camila Sosa\n`;
+            report += `*Semana:* ${currentWeek}\n\n`;
+            report += `*ESTADO DE RUTINAS:*\n`;
+
+            (activePlan[currentWeek] || []).forEach((item, index) => {
+                const isChecked = localStorage.getItem(`w${currentWeek}d${index}`) === 'true';
+                const statusIcon = isChecked ? '✅' : '❌';
+                report += `${statusIcon} ${item.dia}: ${item.tarea}\n`;
+            });
+
+            report += `\n📝 *NOTAS DE LA ATLETA:*\n${notes}\n\n`;
+            report += `¡Seguimos sumando millas! 🔥`;
+            
+            window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
+        }
+
+        let timer, isRunning = false, seconds = 0;
+        function startStop() {
+            if (isRunning) clearInterval(timer);
+            else timer = setInterval(() => {
+                seconds++;
+                let h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60), s=seconds%60;
+                document.getElementById('display').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            }, 1000);
+            isRunning = !isRunning;
+            document.getElementById('startBtn').innerHTML = isRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+        }
+        function resetTimer() { clearInterval(timer); isRunning = false; seconds = 0; document.getElementById('display').innerText = "00:00:00"; document.getElementById('startBtn').innerHTML = '<i class="fas fa-play text-white"></i>';}
         
-        let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n`;
-        report += `*Atleta:* Camila Sosa\n`;
-        report += `*Semana:* ${currentWeek}\n\n`;
-        report += `*ESTADO DE RUTINAS:*\n`;
-
-        // Leer todos los ejercicios de la semana actual
-        (activePlan[currentWeek] || []).forEach((item, index) => {
-            const isChecked = localStorage.getItem(`w${currentWeek}d${index}`) === 'true';
-            const statusIcon = isChecked ? '✅' : '❌';
-            report += `${statusIcon} ${item.dia}: ${item.tarea}\n`;
-        });
-
-        report += `\n📝 *NOTAS DE LA ATLETA:*\n${notes}\n\n`;
-        report += `¡Seguimos sumando millas! 🔥`;
+        document.getElementById('coach-notes').addEventListener('input', saveNotes);
         
-        window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
-    }
-
-    let timer, isRunning = false, seconds = 0;
-    function startStop() {
-        if (isRunning) clearInterval(timer);
-        else timer = setInterval(() => {
-            seconds++;
-            let h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60), s=seconds%60;
-            document.getElementById('display').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-        }, 1000);
-        isRunning = !isRunning;
-        document.getElementById('startBtn').innerHTML = isRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
-    }
-    function resetTimer() { clearInterval(timer); isRunning = false; seconds = 0; document.getElementById('display').innerText = "00:00:00"; document.getElementById('startBtn').innerHTML = '<i class="fas fa-play text-white"></i>';}
-    
-    // Event Listener para guardar notas automáticamente al escribir
-    document.getElementById('coach-notes').addEventListener('input', saveNotes);
-    
-    window.onload = () => loadWeek(1);
-</script>
+        window.onload = () => loadWeek(1);
+    </script>
 </body>
 </html>
