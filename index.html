@@ -156,11 +156,11 @@
             <button onclick="toggleGlossary()" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
             <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
             <div class="space-y-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
-                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr. (Ej: Caco 3:1 es correr 3 min, caminar 1 min).</p></div>
-                <div><span class="font-bold text-white">Regenerativo / Suave:</span> <p class="text-gray-400 text-xs mt-1">Trote lento a ritmo conversacional. Sirve para recuperar.</p></div>
+                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Método Caminar-Correr.</p></div>
+                <div><span class="font-bold text-white">Regenerativo / Suave:</span> <p class="text-gray-400 text-xs mt-1">Trote lento a ritmo conversacional.</p></div>
                 <div><span class="font-bold text-white">Intervalos:</span> <p class="text-gray-400 text-xs mt-1">Segmentos de carrera rápida alternados con recuperación.</p></div>
                 <div><span class="font-bold text-white">Tempo:</span> <p class="text-gray-400 text-xs mt-1">Ritmo constante "cómodamente duro".</p></div>
-                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies, no la velocidad.</p></div>
+                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies.</p></div>
                 <div><span class="font-bold text-white">Taper (Afinar):</span> <p class="text-gray-400 text-xs mt-1">Reducción del volumen para llegar fresco a la carrera.</p></div>
             </div>
         </div>
@@ -190,9 +190,6 @@
         let registrosCloud = {}; 
         let currentWeek = 1;
 
-        // ==========================================
-        // AUTENTICACIÓN
-        // ==========================================
         async function checkSession() {
             try {
                 const { data: { session }, error } = await supabaseClient.auth.getSession();
@@ -265,7 +262,7 @@
         }
 
         // ==========================================
-        // LÓGICA DEL COACH (CORRECCIÓN DE TARJETAS DOBLES)
+        // LÓGICA DEL COACH BLINDADA
         // ==========================================
         async function cargarDashboardCoach(coachId) {
             document.getElementById('coach-loading').classList.remove('hidden');
@@ -285,13 +282,11 @@
                     return;
                 }
 
-                // EL CAMBIO ESTÁ AQUÍ: Filtramos por NOMBRE en lugar de ID
                 const planesUnicos = [];
                 const nombresVistos = new Set();
                 
                 for (const plan of planes) {
                     const atletaNombre = plan.perfiles ? plan.perfiles.nombre : 'Atleta Desconocido';
-                    // Si no hemos visto este nombre antes, lo agregamos a la lista
                     if (!nombresVistos.has(atletaNombre)) {
                         nombresVistos.add(atletaNombre);
                         planesUnicos.push(plan);
@@ -304,11 +299,15 @@
                     const { count: completadas } = await supabaseClient.from('registros_ejecucion').select('*, rutinas_programadas!inner(plan_id)', { count: 'exact', head: true }).eq('rutinas_programadas.plan_id', plan.id).eq('completado', true);
 
                     const porcentaje = totalRutinas ? Math.round((completadas / totalRutinas) * 100) : 0;
+                    
+                    // SEGURIDAD DE STRINGS: Limpiamos comillas y caracteres especiales que rompan el onclick
+                    const nombreSeguro = atletaNombre.replace(/['"`\\]/g, '');
+                    const tituloSeguro = plan.titulo.replace(/['"`\\]/g, '');
 
                     list.innerHTML += `
-                        <div onclick="abrirDetalleAtleta('${plan.id}', '${atletaNombre}', '${plan.titulo}')" class="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer shadow-lg active:scale-95">
+                        <div onclick="abrirDetalleAtleta('${plan.id}', '${nombreSeguro}', '${tituloSeguro}')" class="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer shadow-lg active:scale-95">
                             <div class="flex justify-between items-center mb-3 pointer-events-none">
-                                <div><h3 class="font-black text-lg text-white">${atletaNombre}</h3><p class="text-xs text-orange-500 uppercase font-bold">${plan.titulo}</p></div>
+                                <div><h3 class="font-black text-lg text-white">${nombreSeguro}</h3><p class="text-xs text-orange-500 uppercase font-bold">${tituloSeguro}</p></div>
                                 <div class="text-right"><span class="text-2xl font-black text-gray-300">${porcentaje}%</span></div>
                             </div>
                             <div class="w-full bg-black rounded-full h-2 pointer-events-none">
@@ -338,11 +337,18 @@
             document.getElementById('athlete-detail-modal').classList.remove('hidden');
 
             try {
-                const { data: rutinas } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planId).order('semana', { ascending: true }).order('id', { ascending: true });
+                const { data: rutinas, error: rutinasError } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planId).order('semana', { ascending: true }).order('id', { ascending: true });
+                if (rutinasError) throw rutinasError;
+
                 const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, tiempo_app, garmin_dist, garmin_pace, notas').eq('completado', true);
 
                 if (!rutinas || rutinas.length === 0) {
-                    document.getElementById('detail-content').innerHTML = '<p class="text-gray-500 text-center py-4">No hay rutinas asignadas.</p>';
+                    document.getElementById('detail-content').innerHTML = `
+                        <div class="text-center py-6 border border-gray-800 rounded-xl bg-black">
+                            <i class="fas fa-exclamation-circle text-orange-500 text-3xl mb-2"></i>
+                            <p class="text-gray-400 font-bold">No hay rutinas asignadas</p>
+                            <p class="text-[10px] text-gray-500 mt-1">El plan fue creado, pero falta inyectar las rutinas en la base de datos.</p>
+                        </div>`;
                     document.getElementById('detail-loading').classList.add('hidden');
                     return;
                 }
@@ -386,6 +392,7 @@
                 document.getElementById('detail-content').innerHTML = html;
             } catch(e) {
                 console.error("Error al cargar detalles:", e);
+                document.getElementById('detail-content').innerHTML = '<p class="text-red-500 text-center py-4">Ocurrió un error al cargar la información.</p>';
             }
             document.getElementById('detail-loading').classList.add('hidden');
         }
