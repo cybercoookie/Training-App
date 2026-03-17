@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JS Running Club - Elite Hub</title>
+    <title>JS Running Club - Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -22,14 +22,14 @@
     <div id="login-view" class="flex flex-col items-center justify-center min-h-screen p-6">
         <div class="w-full max-w-sm bg-gray-900 border border-gray-800 rounded-3xl p-8 shadow-2xl text-center">
             <h1 class="text-3xl font-black italic tracking-tighter mb-1">JS <span class="text-orange-500">RUNNING CLUB</span></h1>
-            <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-8">Elite Athlete Portal</p>
+            <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500 mb-8">Portal de Acceso</p>
             
             <form id="login-form" class="space-y-4 text-left" onsubmit="handleLogin(event)">
                 <div>
-                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1 ml-1">Email del Atleta</label>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1 ml-1">Email</label>
                     <div class="relative">
                         <i class="fas fa-envelope absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
-                        <input type="email" id="email" required class="w-full bg-black border border-gray-800 rounded-xl py-3 pl-10 pr-4 text-sm focus:border-orange-500 outline-none transition" placeholder="camila@ejemplo.com">
+                        <input type="email" id="email" required class="w-full bg-black border border-gray-800 rounded-xl py-3 pl-10 pr-4 text-sm focus:border-orange-500 outline-none transition" placeholder="tu@email.com">
                     </div>
                 </div>
                 <div>
@@ -41,10 +41,34 @@
                 </div>
                 <p id="login-error" class="text-red-500 text-xs text-center hidden font-bold mt-2"></p>
                 <button type="submit" id="login-btn" class="w-full bg-orange-600 hover:bg-orange-700 p-4 rounded-xl font-black text-white shadow-lg transition active:scale-95 mt-6">
-                    ENTRAR AL HUB <i class="fas fa-arrow-right ml-2"></i>
+                    ENTRAR <i class="fas fa-arrow-right ml-2"></i>
                 </button>
             </form>
         </div>
+    </div>
+
+    <div id="coach-view" class="hidden pb-24">
+        <header class="p-6 glass sticky top-0 z-40 border-b border-gray-800">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl font-black italic tracking-tighter text-orange-500">PANEL DE CONTROL</h1>
+                    <div class="text-[9px] uppercase tracking-widest font-bold text-gray-500 mt-1">
+                        Coach: <span id="coach-name-display" class="text-white">...</span>
+                    </div>
+                </div>
+                <button onclick="handleLogout()" class="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="p-4 max-w-md mx-auto space-y-6">
+            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-800 pb-2">Atletas Activos</h2>
+            <div id="coach-loading" class="text-center py-4 text-orange-500 animate-pulse hidden">
+                <i class="fas fa-spinner fa-spin text-2xl"></i>
+            </div>
+            <div id="athletes-list" class="space-y-4"></div>
+        </main>
     </div>
 
     <div id="app-view" class="hidden pb-24">
@@ -92,26 +116,17 @@
                 </div>
 
                 <div id="training-list" class="space-y-4"></div>
-
-                <section class="bg-gray-900 p-6 rounded-3xl border border-gray-800 space-y-4">
-                    <textarea id="coach-notes" placeholder="¿Alguna molestia o nota para el Coach?" class="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm focus:border-orange-500 outline-none h-20 transition-all"></textarea>
-                    <button onclick="sendToCoach()" class="w-full bg-green-600 hover:bg-green-700 p-5 rounded-2xl font-black flex items-center justify-center gap-3 transition shadow-lg">
-                        <i class="fab fa-whatsapp text-2xl"></i> ENVIAR REPORTE
-                    </button>
+                
+                <section class="bg-gray-900 p-6 rounded-3xl border border-gray-800 text-center">
+                    <h2 class="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Cronómetro JS</h2>
+                    <div id="display" class="text-5xl font-mono font-bold mb-4 text-white">00:00:00</div>
+                    <div class="flex justify-center gap-4">
+                        <button onclick="startStop()" id="startBtn" class="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95"><i class="fas fa-play text-white"></i></button>
+                        <button onclick="resetTimer()" class="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95"><i class="fas fa-redo text-gray-400"></i></button>
+                    </div>
                 </section>
             </div>
         </main>
-    </div>
-
-    <div id="glossary-modal" class="hidden fixed inset-0 z-50 modal-glass flex items-center justify-center p-4">
-        <div class="bg-gray-900 border border-gray-700 rounded-3xl p-6 max-w-sm w-full relative">
-            <button onclick="toggleGlossary()" class="absolute top-4 right-4 text-gray-400"><i class="fas fa-times text-xl"></i></button>
-            <h2 class="text-lg font-black text-orange-500 uppercase italic mb-4 border-b border-gray-800 pb-2"><i class="fas fa-book-open mr-2"></i> Glosario JS</h2>
-            <div class="space-y-4 text-sm pr-2">
-                <div><span class="font-bold text-white">Caco (X:Y):</span> <p class="text-gray-400 text-xs mt-1">Caminar-Correr.</p></div>
-                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Tiempo en pies.</p></div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -121,18 +136,35 @@
         const supabaseClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
         let activePlanCloud = {}; 
-        let registrosCloud = {}; // Aquí guardaremos lo que está completado en la BD
+        let registrosCloud = {}; 
         let currentWeek = 1;
 
-        // AUTENTICACIÓN
+        // AUTENTICACIÓN Y ENRUTAMIENTO DE ROLES
         async function checkSession() {
             const { data: { session } } = await supabaseClient.auth.getSession();
+            
             if (session) {
                 document.getElementById('login-view').classList.add('hidden');
-                document.getElementById('app-view').classList.remove('hidden');
-                descargarPlanDeLaNube(session.user.id);
+                
+                // Obtener el rol del usuario
+                const { data: perfil } = await supabaseClient.from('perfiles').select('rol, nombre').eq('id', session.user.id).single();
+                
+                if (perfil && perfil.rol === 'coach') {
+                    // Es el Entrenador
+                    document.getElementById('coach-view').classList.remove('hidden');
+                    document.getElementById('app-view').classList.add('hidden');
+                    document.getElementById('coach-name-display').innerText = perfil.nombre;
+                    cargarDashboardCoach(session.user.id);
+                } else {
+                    // Es un Atleta
+                    document.getElementById('app-view').classList.remove('hidden');
+                    document.getElementById('coach-view').classList.add('hidden');
+                    if(perfil) document.getElementById('user-display-name').innerText = perfil.nombre;
+                    descargarPlanDeLaNube(session.user.id);
+                }
             } else {
                 document.getElementById('app-view').classList.add('hidden');
+                document.getElementById('coach-view').classList.add('hidden');
                 document.getElementById('login-view').classList.remove('hidden');
                 document.getElementById('login-view').classList.add('flex');
             }
@@ -145,14 +177,14 @@
             const btn = document.getElementById('login-btn');
             const errorMsg = document.getElementById('login-error');
 
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cargando...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             errorMsg.classList.add('hidden');
 
             const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) {
                 errorMsg.innerText = "Credenciales incorrectas.";
                 errorMsg.classList.remove('hidden');
-                btn.innerHTML = 'ENTRAR AL HUB <i class="fas fa-arrow-right ml-2"></i>';
+                btn.innerHTML = 'ENTRAR <i class="fas fa-arrow-right ml-2"></i>';
             } else {
                 checkSession();
             }
@@ -160,55 +192,91 @@
 
         async function handleLogout() {
             await supabaseClient.auth.signOut();
-            checkSession();
+            window.location.reload(); // Refrescar limpio
         }
 
-        if(supabaseClient) supabaseClient.auth.onAuthStateChange(() => checkSession());
+        // ==========================================
+        // LÓGICA DEL COACH (DASHBOARD)
+        // ==========================================
+        async function cargarDashboardCoach(coachId) {
+            document.getElementById('coach-loading').classList.remove('hidden');
+            const list = document.getElementById('athletes-list');
+            list.innerHTML = '';
 
-        // DESCARGA DESDE LA NUBE
+            // 1. Buscar todos los planes donde este usuario es el coach
+            const { data: planes } = await supabaseClient
+                .from('planes_entrenamiento')
+                .select('id, titulo, atleta_id, perfiles!planes_entrenamiento_atleta_id_fkey(nombre)')
+                .eq('coach_id', coachId)
+                .eq('estado', 'activo');
+
+            if (!planes || planes.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center text-sm">No tienes atletas activos actualmente.</p>';
+                document.getElementById('coach-loading').classList.add('hidden');
+                return;
+            }
+
+            // 2. Para cada plan, calculamos un progreso rápido
+            for (const plan of planes) {
+                const atletaNombre = plan.perfiles ? plan.perfiles.nombre : 'Atleta Desconocido';
+                
+                // Buscar cuántas rutinas tiene el plan en total
+                const { count: totalRutinas } = await supabaseClient.from('rutinas_programadas')
+                    .select('*', { count: 'exact', head: true }).eq('plan_id', plan.id);
+                
+                // Buscar cuántas ha completado el atleta
+                const { count: completadas } = await supabaseClient.from('registros_ejecucion')
+                    .select('*, rutinas_programadas!inner(plan_id)', { count: 'exact', head: true })
+                    .eq('rutinas_programadas.plan_id', plan.id)
+                    .eq('completado', true);
+
+                const porcentaje = totalRutinas ? Math.round((completadas / totalRutinas) * 100) : 0;
+
+                list.innerHTML += `
+                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer">
+                        <div class="flex justify-between items-center mb-3">
+                            <div>
+                                <h3 class="font-black text-lg text-white">${atletaNombre}</h3>
+                                <p class="text-xs text-orange-500 uppercase font-bold">${plan.titulo}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-2xl font-black text-gray-300">${porcentaje}%</span>
+                            </div>
+                        </div>
+                        <div class="w-full bg-black rounded-full h-2">
+                            <div class="bg-green-500 h-2 rounded-full transition-all" style="width: ${porcentaje}%"></div>
+                        </div>
+                        <p class="text-[10px] text-gray-500 mt-2 text-right">${completadas || 0} de ${totalRutinas || 0} sesiones completadas</p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('coach-loading').classList.add('hidden');
+        }
+
+        // ==========================================
+        // LÓGICA DEL ATLETA (Igual que antes)
+        // ==========================================
         async function descargarPlanDeLaNube(userId) {
             document.getElementById('cloud-loading').classList.remove('hidden');
             document.getElementById('entrenamiento-container').classList.add('hidden');
 
-            const { data: perfil } = await supabaseClient.from('perfiles').select('nombre').eq('id', userId).single();
-            if(perfil) document.getElementById('user-display-name').innerText = perfil.nombre;
-
-            const { data: planActivo, error: planError } = await supabaseClient.from('planes_entrenamiento').select('id, titulo').eq('atleta_id', userId).eq('estado', 'activo').single();
-
-            if (planError || !planActivo) {
+            const { data: planActivo } = await supabaseClient.from('planes_entrenamiento').select('id, titulo').eq('atleta_id', userId).eq('estado', 'activo').single();
+            if (!planActivo) {
                 document.getElementById('cloud-loading').innerHTML = "No tienes un plan activo asignado.";
                 return;
             }
-
             document.getElementById('plan-title').innerText = planActivo.titulo;
 
-            // Traer rutinas programadas
             const { data: rutinas } = await supabaseClient.from('rutinas_programadas').select('*').eq('plan_id', planActivo.id).order('id', { ascending: true });
-            
-            // NUEVO: Traer el progreso (registros_ejecucion) de este atleta
             const { data: ejecuciones } = await supabaseClient.from('registros_ejecucion').select('rutina_id, completado, id');
             
-            // Limpiar y poblar el diccionario de registros
             registrosCloud = {};
-            if(ejecuciones) {
-                ejecuciones.forEach(ej => {
-                    registrosCloud[ej.rutina_id] = { completado: ej.completado, record_id: ej.id };
-                });
-            }
+            if(ejecuciones) ejecuciones.forEach(ej => registrosCloud[ej.rutina_id] = { completado: ej.completado, record_id: ej.id });
 
             let planFormateado = {};
             for(let i=1; i<=8; i++) planFormateado[i] = [];
-
-            if(rutinas) {
-                rutinas.forEach(r => {
-                    planFormateado[r.semana].push({
-                        id_db: r.id, // UID real de PostgreSQL
-                        dia: r.dia_semana,
-                        tarea: r.titulo,
-                        detalle: r.detalle
-                    });
-                });
-            }
+            if(rutinas) rutinas.forEach(r => planFormateado[r.semana].push({ id_db: r.id, dia: r.dia_semana, tarea: r.titulo, detalle: r.detalle }));
 
             activePlanCloud = planFormateado;
             document.getElementById('cloud-loading').classList.add('hidden');
@@ -216,16 +284,13 @@
             loadWeek(1);
         }
 
-        // DIBUJAR PANTALLA
         function loadWeek(w, ev = null) {
             currentWeek = w;
             const list = document.getElementById('training-list');
             list.innerHTML = '';
             
             (activePlanCloud[w] || []).forEach((item) => {
-                // Leer estado desde la base de datos (registrosCloud)
                 const isChecked = registrosCloud[item.id_db] ? registrosCloud[item.id_db].completado : false;
-                
                 list.innerHTML += `
                     <div class="bg-gray-900 p-5 rounded-2xl flex items-center justify-between border border-gray-800 transition-all ${isChecked ? 'completed' : ''}">
                         <div class="flex-1 mr-4">
@@ -237,65 +302,46 @@
                     </div>
                 `;
             });
-
-            document.getElementById('coach-notes').value = localStorage.getItem(`notes-w${w}`) || "";
             document.querySelectorAll('.week-tab').forEach(t => t.classList.remove('tab-active'));
             const tabs = document.querySelectorAll('.week-tab');
             if (ev && ev.target) ev.target.classList.add('tab-active');
             else if (tabs[w-1]) tabs[w-1].classList.add('tab-active');
         }
 
-        // NUEVO: ESCRIBIR DIRECTO A SUPABASE
         async function toggleTaskDB(rutinaId, checkboxElement) {
             const isChecked = checkboxElement.checked;
             checkboxElement.parentElement.classList.toggle('completed', isChecked);
-            
-            // Indicador de "Guardando..." en la UI
             const statusIndicator = document.getElementById('sync-status');
             statusIndicator.innerHTML = '<i class="fas fa-cloud-upload-alt text-orange-500 saving-pulse"></i> Guardando...';
 
             try {
-                // Verificar si ya existe un registro previo para esta rutina
                 const registroPrevio = registrosCloud[rutinaId];
-
                 if (registroPrevio && registroPrevio.record_id) {
-                    // Si existe, lo actualizamos
-                    await supabaseClient.from('registros_ejecucion')
-                        .update({ completado: isChecked })
-                        .eq('id', registroPrevio.record_id);
+                    await supabaseClient.from('registros_ejecucion').update({ completado: isChecked }).eq('id', registroPrevio.record_id);
                     registrosCloud[rutinaId].completado = isChecked;
                 } else {
-                    // Si no existe, lo creamos nuevo
-                    const { data } = await supabaseClient.from('registros_ejecucion')
-                        .insert([{ rutina_id: rutinaId, completado: isChecked }])
-                        .select()
-                        .single();
-                    
-                    if(data) {
-                        registrosCloud[rutinaId] = { completado: isChecked, record_id: data.id };
-                    }
+                    const { data } = await supabaseClient.from('registros_ejecucion').insert([{ rutina_id: rutinaId, completado: isChecked }]).select().single();
+                    if(data) registrosCloud[rutinaId] = { completado: isChecked, record_id: data.id };
                 }
-                
-                // Éxito: Volver a mostrar "Sincronizado"
-                setTimeout(() => {
-                    statusIndicator.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> Sincronizado';
-                }, 500);
-
-            } catch (error) {
-                console.error("Error guardando progreso:", error);
-                statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500"></i> Error';
-            }
+                setTimeout(() => statusIndicator.innerHTML = '<i class="fas fa-check-circle text-green-500"></i> Sincronizado', 500);
+            } catch (error) { statusIndicator.innerHTML = '<i class="fas fa-times-circle text-red-500"></i> Error'; }
         }
 
-        function sendToCoach() {
-            const notes = document.getElementById('coach-notes').value || "Sin comentarios.";
-            localStorage.setItem(`notes-w${currentWeek}`, notes); // Las notas por ahora las dejamos locales para el MVP
-            
-            let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n*Semana:* ${currentWeek}\n*NOTAS:*\n${notes}\n\n¡Seguimos! 🔥`;
-            window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
+        let timer, isRunning = false, seconds = 0;
+        function startStop() {
+            if (isRunning) clearInterval(timer);
+            else timer = setInterval(() => {
+                seconds++;
+                let h=Math.floor(seconds/3600), m=Math.floor((seconds%3600)/60), s=seconds%60;
+                document.getElementById('display').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            }, 1000);
+            isRunning = !isRunning;
+            document.getElementById('startBtn').innerHTML = isRunning ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
         }
-
-        function toggleGlossary() { document.getElementById('glossary-modal').classList.toggle('hidden'); }
+        function resetTimer() { clearInterval(timer); isRunning = false; seconds = 0; document.getElementById('display').innerText = "00:00:00"; document.getElementById('startBtn').innerHTML = '<i class="fas fa-play text-white"></i>';}
+        
+        // Iniciar app verificando sesión
+        if(supabaseClient) checkSession();
     </script>
 </body>
 </html>
