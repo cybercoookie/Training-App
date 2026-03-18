@@ -160,7 +160,7 @@
                 <div><span class="font-bold text-white">Regenerativo / Suave:</span> <p class="text-gray-400 text-xs mt-1">Trote lento a ritmo conversacional. Sirve para recuperar.</p></div>
                 <div><span class="font-bold text-white">Intervalos:</span> <p class="text-gray-400 text-xs mt-1">Segmentos de carrera rápida alternados con recuperación.</p></div>
                 <div><span class="font-bold text-white">Tempo:</span> <p class="text-gray-400 text-xs mt-1">Ritmo constante "cómodamente duro".</p></div>
-                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies, no la velocidad.</p></div>
+                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies.</p></div>
                 <div><span class="font-bold text-white">Taper (Afinar):</span> <p class="text-gray-400 text-xs mt-1">Reducción del volumen para llegar fresco a la carrera.</p></div>
             </div>
         </div>
@@ -185,6 +185,9 @@
         const supabaseUrl = 'https://ihwzflblfeayyjuaizrx.supabase.co';
         const supabaseKey = 'sb_publishable_jRv8RmKitJkUsSRTmLto9A_nJtuQTI-';
         const supabaseClient = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+
+        // DICCIONARIO CRONOLÓGICO PARA ORDENAR LOS DÍAS
+        const ordenDias = { 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Miercoles': 3, 'Jueves': 4, 'Viernes': 5, 'Sábado': 6, 'Sabado': 6, 'Domingo': 7 };
 
         let activePlanCloud = {}; 
         let registrosCloud = {}; 
@@ -262,11 +265,11 @@
         }
 
         // ==========================================
-        // LÓGICA DEL COACH (FIX: RACE CONDITION)
+        // LÓGICA DEL COACH
         // ==========================================
         let cargandoDashboard = false;
         async function cargarDashboardCoach(coachId) {
-            if (cargandoDashboard) return; // Evitar que corra dos veces al mismo tiempo
+            if (cargandoDashboard) return; 
             cargandoDashboard = true;
             
             document.getElementById('coach-loading').classList.remove('hidden');
@@ -278,9 +281,6 @@
                     .eq('coach_id', coachId).eq('estado', 'activo').order('fecha_creacion', { ascending: false });
 
                 if (error) throw error;
-
-                // EL FIX DE LA DUPLICACIÓN: Limpiamos la pantalla JUSTO ANTES de dibujar
-                // Así nos aseguramos de que no queden rastros de llamadas anteriores.
                 list.innerHTML = '';
 
                 if (!planes || planes.length === 0) {
@@ -356,11 +356,16 @@
                         <div class="text-center py-6 border border-gray-800 rounded-xl bg-black">
                             <i class="fas fa-exclamation-circle text-orange-500 text-3xl mb-2"></i>
                             <p class="text-gray-400 font-bold">No hay rutinas asignadas</p>
-                            <p class="text-[10px] text-gray-500 mt-1">El plan fue creado, pero falta inyectar las rutinas en la base de datos.</p>
                         </div>`;
                     document.getElementById('detail-loading').classList.add('hidden');
                     return;
                 }
+
+                // NUEVO: Ordenar estrictamente por los días de la semana
+                rutinas.sort((a, b) => {
+                    if (a.semana !== b.semana) return a.semana - b.semana;
+                    return (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99);
+                });
 
                 const completadasMap = {};
                 if (ejecuciones) ejecuciones.forEach(ej => completadasMap[ej.rutina_id] = ej);
@@ -432,6 +437,11 @@
                 let planFormateado = {};
                 for(let i=1; i<=8; i++) planFormateado[i] = [];
                 if(rutinas) rutinas.forEach(r => planFormateado[r.semana].push({ id_db: r.id, dia: r.dia_semana, tarea: r.titulo, detalle: r.detalle }));
+
+                // NUEVO: Ordenar lógicamente cada día dentro de cada semana
+                for(let i=1; i<=8; i++) {
+                    planFormateado[i].sort((a, b) => (ordenDias[a.dia] || 99) - (ordenDias[b.dia] || 99));
+                }
 
                 activePlanCloud = planFormateado;
                 
