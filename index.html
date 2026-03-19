@@ -144,7 +144,7 @@
                         <i class="fas fa-save text-xl"></i> GUARDAR EN LA NUBE
                     </button>
                     <button onclick="sendToCoachWhatsApp()" class="w-full bg-green-500 hover:bg-green-600 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm border border-green-400 active:scale-95">
-                        <i class="fab fa-whatsapp text-xl"></i> ENVIAR RESUMEN SEMANAL
+                        <i class="fab fa-whatsapp text-xl"></i> ENVIAR REPORTE DIARIO
                     </button>
                 </section>
             </div>
@@ -160,7 +160,7 @@
                 <div><span class="font-bold text-white">Regenerativo / Suave:</span> <p class="text-gray-400 text-xs mt-1">Trote lento a ritmo conversacional. Sirve para recuperar.</p></div>
                 <div><span class="font-bold text-white">Intervalos:</span> <p class="text-gray-400 text-xs mt-1">Segmentos de carrera rápida alternados con recuperación.</p></div>
                 <div><span class="font-bold text-white">Tempo:</span> <p class="text-gray-400 text-xs mt-1">Ritmo constante "cómodamente duro".</p></div>
-                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies.</p></div>
+                <div><span class="font-bold text-white">Larga / Long Run:</span> <p class="text-gray-400 text-xs mt-1">Entrenamiento clave. Importa el tiempo en pies, no la velocidad.</p></div>
                 <div><span class="font-bold text-white">Taper (Afinar):</span> <p class="text-gray-400 text-xs mt-1">Reducción del volumen para llegar fresco a la carrera.</p></div>
             </div>
         </div>
@@ -361,7 +361,6 @@
                     return;
                 }
 
-                // NUEVO: Ordenar estrictamente por los días de la semana
                 rutinas.sort((a, b) => {
                     if (a.semana !== b.semana) return a.semana - b.semana;
                     return (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99);
@@ -438,7 +437,6 @@
                 for(let i=1; i<=8; i++) planFormateado[i] = [];
                 if(rutinas) rutinas.forEach(r => planFormateado[r.semana].push({ id_db: r.id, dia: r.dia_semana, tarea: r.titulo, detalle: r.detalle }));
 
-                // NUEVO: Ordenar lógicamente cada día dentro de cada semana
                 for(let i=1; i<=8; i++) {
                     planFormateado[i].sort((a, b) => (ordenDias[a.dia] || 99) - (ordenDias[b.dia] || 99));
                 }
@@ -553,22 +551,50 @@
             } catch(e) { btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error al guardar'; }
         }
 
+        // ==========================================
+        // NUEVA LÓGICA: WHATSAPP REPORTE DIARIO
+        // ==========================================
         function sendToCoachWhatsApp() {
-            let atletaName = document.getElementById('user-display-name').innerText;
-            let report = `🏃‍♀️ *REPORTE SEMANAL: JS RUNNING CLUB*\n\n*Atleta:* ${atletaName}\n*Semana:* ${currentWeek}\n\n*ESTADO DE RUTINAS:*\n`;
+            const rutinaId = document.getElementById('rutina-selector').value;
+            
+            if (!rutinaId) {
+                alert("Por favor selecciona un entrenamiento del menú desplegable para poder enviar el reporte.");
+                return;
+            }
 
+            let atletaName = document.getElementById('user-display-name').innerText;
+            
+            // Buscar la información de la rutina seleccionada
+            let rutinaSeleccionada = null;
             (activePlanCloud[currentWeek] || []).forEach((item) => {
-                const registro = registrosCloud[item.id_db];
-                const isChecked = registro ? registro.completado : false;
-                const statusIcon = isChecked ? '✅' : '❌';
-                
-                report += `${statusIcon} ${item.dia}: ${item.tarea}\n`;
-                if (isChecked && (registro.dist || registro.pace)) {
-                    report += `   └ ⌚ ${registro.dist || '--'} mi | ⚡ ${registro.pace || '--'} /mi\n`;
-                }
+                if (item.id_db == rutinaId) rutinaSeleccionada = item;
             });
 
+            if (!rutinaSeleccionada) return;
+
+            // Tomamos los datos directamente de la pantalla para que pueda enviar lo que acaba de escribir
+            const dist = document.getElementById('garmin-dist').value;
+            const pace = document.getElementById('garmin-pace').value;
+            const notes = document.getElementById('coach-notes').value;
+
+            // Construcción del mensaje limpio y enfocado
+            let report = `🏃‍♀️ *REPORTE DE ENTRENAMIENTO: JS RUNNING CLUB*\n\n`;
+            report += `*Atleta:* ${atletaName}\n`;
+            report += `*Semana:* ${currentWeek}\n\n`;
+            
+            report += `✅ *ENTRENAMIENTO COMPLETADO:*\n`;
+            report += `${rutinaSeleccionada.dia}: ${rutinaSeleccionada.tarea}\n`;
+            
+            if (dist || pace) {
+                report += `└ ⌚ ${dist || '--'} mi | ⚡ ${pace || '--'} /mi\n`;
+            }
+
+            if (notes) {
+                report += `\n*NOTAS PARA EL COACH:*\n"${notes}"\n`;
+            }
+
             report += `\n¡Seguimos sumando millas! 🔥`;
+            
             window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
         }
 
