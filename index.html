@@ -139,7 +139,7 @@
                     </div>
                     
                     <button onclick="guardarDetalles()" id="save-details-btn" class="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm mb-2 active:scale-95"><i class="fas fa-save text-xl"></i> GUARDAR EN LA NUBE</button>
-                    <button onclick="sendToCoachWhatsApp()" class="w-full bg-green-500 hover:bg-green-600 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm border border-green-400 active:scale-95"><i class="fab fa-whatsapp text-xl"></i> ENVIAR REPORTE AL COACH</button>
+                    <button onclick="sendToCoachWhatsApp()" class="w-full bg-green-500 hover:bg-green-600 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm border border-green-400 active:scale-95"><i class="fab fa-whatsapp text-xl"></i> ENVIAR REPORTE DIARIO</button>
                 </section>
             </div>
 
@@ -158,23 +158,14 @@
                 </div>
 
                 <section class="bg-gray-900 p-6 rounded-3xl border border-gray-800 shadow-lg">
-                    <h3 class="text-[10px] font-black uppercase text-orange-500 tracking-widest flex items-center gap-2 mb-4">
-                        <i class="fas fa-chart-area"></i> Evolución de Entrenamiento
-                    </h3>
-                    <div class="w-full h-64">
-                        <canvas id="progressChart"></canvas>
-                    </div>
+                    <h3 class="text-[10px] font-black uppercase text-orange-500 tracking-widest flex items-center gap-2 mb-4"><i class="fas fa-chart-area"></i> Evolución de Entrenamiento</h3>
+                    <div class="w-full h-64"><canvas id="progressChart"></canvas></div>
                 </section>
 
                 <section class="bg-gradient-to-br from-gray-900 to-black p-6 rounded-3xl border border-orange-500/20 shadow-xl relative overflow-hidden">
-                    <div class="absolute top-0 right-0 p-4 opacity-10">
-                        <i class="fas fa-robot text-6xl text-orange-500"></i>
-                    </div>
-                    <h3 class="text-[10px] font-black uppercase text-orange-500 tracking-widest flex items-center gap-2 mb-3 relative z-10">
-                        <i class="fas fa-bolt"></i> Análisis de Rendimiento
-                    </h3>
-                    <div id="dash-analysis-text" class="text-sm text-gray-300 leading-relaxed relative z-10 space-y-2">
-                        </div>
+                    <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fas fa-robot text-6xl text-orange-500"></i></div>
+                    <h3 class="text-[10px] font-black uppercase text-orange-500 tracking-widest flex items-center gap-2 mb-3 relative z-10"><i class="fas fa-bolt"></i> Análisis de Rendimiento</h3>
+                    <div id="dash-analysis-text" class="text-sm text-gray-300 leading-relaxed relative z-10 space-y-2"></div>
                 </section>
             </div>
         </main>
@@ -194,13 +185,35 @@
 
     <div id="athlete-detail-modal" class="hidden fixed inset-0 z-50 modal-glass flex flex-col justify-end sm:justify-center p-0 sm:p-4">
         <div class="bg-gray-900 border-t sm:border border-gray-700 rounded-t-3xl sm:rounded-3xl w-full max-w-md mx-auto relative h-[85vh] sm:h-auto max-h-[85vh] flex flex-col shadow-2xl">
-            <div class="p-6 border-b border-gray-800 bg-gray-900 rounded-t-3xl z-10 sticky top-0">
-                <button onclick="closeAthleteDetail()" class="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
-                <h2 id="detail-athlete-name" class="text-2xl font-black text-orange-500 uppercase italic mb-1 leading-none">...</h2>
-                <p id="detail-plan-title" class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Cargando progreso...</p>
+            <div class="p-6 border-b border-gray-800 bg-gray-900 rounded-t-3xl z-10 sticky top-0 flex justify-between items-start">
+                <div>
+                    <h2 id="detail-athlete-name" class="text-2xl font-black text-orange-500 uppercase italic mb-1 leading-none">...</h2>
+                    <p id="detail-plan-title" class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Cargando progreso...</p>
+                </div>
+                <button onclick="closeAthleteDetail()" class="text-gray-400 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
             </div>
+            
             <div id="detail-loading" class="text-center py-10 text-orange-500 animate-pulse hidden"><i class="fas fa-spinner fa-spin text-3xl"></i></div>
-            <div id="detail-content" class="overflow-y-auto flex-1 p-6 space-y-4"></div>
+            
+            <div id="detail-content" class="overflow-y-auto flex-1 p-6 space-y-6">
+                <div id="coach-modal-dashboard" class="space-y-4 hidden">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-black p-4 rounded-2xl border border-gray-800 text-center">
+                            <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500">Millas Tot.</p>
+                            <h3 id="modal-tot-miles" class="text-2xl font-black text-orange-500">0.0</h3>
+                        </div>
+                        <div class="bg-black p-4 rounded-2xl border border-gray-800 text-center">
+                            <p class="text-[10px] uppercase tracking-widest font-bold text-gray-500">BPM Prom.</p>
+                            <h3 id="modal-avg-hr" class="text-2xl font-black text-red-500">0</h3>
+                        </div>
+                    </div>
+                    <div class="w-full h-48 bg-black p-4 rounded-2xl border border-gray-800">
+                        <canvas id="coachProgressChart"></canvas>
+                    </div>
+                </div>
+
+                <div id="modal-routines-list" class="space-y-4"></div>
+            </div>
         </div>
     </div>
 
@@ -216,6 +229,7 @@
         let registrosCloud = {}; 
         let currentWeek = 1;
         let chartInstance = null;
+        let coachChartInstance = null; // Gráfica para el modal del Coach
 
         async function checkSession() {
             try {
@@ -271,7 +285,7 @@
         }
 
         // ==========================================
-        // LÓGICA DEL COACH
+        // LÓGICA DEL COACH (DASHBOARD Y MODAL MEJORADO)
         // ==========================================
         let cargandoDashboard = false;
         async function cargarDashboardCoach(coachId) {
@@ -315,7 +329,8 @@
         async function abrirDetalleAtleta(planId, atletaNombre, planTitulo) {
             document.getElementById('detail-athlete-name').innerText = atletaNombre;
             document.getElementById('detail-plan-title').innerText = planTitulo;
-            document.getElementById('detail-content').innerHTML = '';
+            document.getElementById('modal-routines-list').innerHTML = '';
+            document.getElementById('coach-modal-dashboard').classList.add('hidden');
             document.getElementById('detail-loading').classList.remove('hidden');
             document.getElementById('athlete-detail-modal').classList.remove('hidden');
 
@@ -326,7 +341,13 @@
                 rutinas.sort((a, b) => { if (a.semana !== b.semana) return a.semana - b.semana; return (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99); });
                 const completadasMap = {}; ejecuciones.forEach(ej => completadasMap[ej.rutina_id] = ej);
 
+                // --- NUEVO: CÁLCULOS PARA EL MINI-DASHBOARD DEL COACH ---
+                let totalMillas = 0;
+                let sumHr = 0, countHr = 0;
+                let datosSemanales = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0 };
+
                 let html = ''; let currentGroupWeek = 0;
+                
                 rutinas.forEach(r => {
                     if (r.semana !== currentGroupWeek) {
                         currentGroupWeek = r.semana;
@@ -338,24 +359,74 @@
                     const icon = isCompleted ? '<i class="fas fa-check-circle text-green-500 text-xl"></i>' : '<i class="far fa-circle text-gray-700 text-xl"></i>';
 
                     let extraDataHtml = '';
-                    if (isCompleted && (registro.garmin_dist || registro.garmin_pace || registro.notas || registro.garmin_hr || registro.garmin_url)) {
-                        extraDataHtml += `<div class="mt-3 pt-3 border-t border-gray-700/50 space-y-2">`;
-                        if(registro.garmin_dist || registro.garmin_pace || registro.garmin_hr) {
-                            extraDataHtml += `<div class="flex flex-wrap gap-3 text-[10px] text-gray-300">`;
-                            if(registro.garmin_dist) extraDataHtml += `<span><i class="fas fa-route text-orange-500"></i> ${registro.garmin_dist} mi</span>`;
-                            if(registro.garmin_pace) extraDataHtml += `<span><i class="fas fa-stopwatch text-blue-400"></i> ${registro.garmin_pace}/mi</span>`;
-                            if(registro.garmin_hr) extraDataHtml += `<span><i class="fas fa-heartbeat text-red-500"></i> ${registro.garmin_hr} bpm</span>`;
+                    if (isCompleted) {
+                        // Sumar para las gráficas
+                        if(registro.garmin_dist) {
+                            totalMillas += registro.garmin_dist;
+                            datosSemanales[r.semana] += registro.garmin_dist;
+                        }
+                        if(registro.garmin_hr) {
+                            sumHr += registro.garmin_hr;
+                            countHr++;
+                        }
+
+                        // Construir el HTML de los extras
+                        if(registro.garmin_dist || registro.garmin_pace || registro.notas || registro.garmin_hr || registro.garmin_url) {
+                            extraDataHtml += `<div class="mt-3 pt-3 border-t border-gray-700/50 space-y-2">`;
+                            if(registro.garmin_dist || registro.garmin_pace || registro.garmin_hr) {
+                                extraDataHtml += `<div class="flex flex-wrap gap-3 text-[10px] text-gray-300">`;
+                                if(registro.garmin_dist) extraDataHtml += `<span><i class="fas fa-route text-orange-500"></i> ${registro.garmin_dist} mi</span>`;
+                                if(registro.garmin_pace) extraDataHtml += `<span><i class="fas fa-stopwatch text-blue-400"></i> ${registro.garmin_pace}/mi</span>`;
+                                if(registro.garmin_hr) extraDataHtml += `<span><i class="fas fa-heartbeat text-red-500"></i> ${registro.garmin_hr} bpm</span>`;
+                                extraDataHtml += `</div>`;
+                            }
+                            if(registro.garmin_url) extraDataHtml += `<a href="${registro.garmin_url}" target="_blank" class="text-[10px] text-blue-400 hover:text-blue-300 underline block"><i class="fas fa-link"></i> Ver actividad en Garmin</a>`;
+                            if(registro.notas) extraDataHtml += `<p class="text-[10px] text-gray-400 italic bg-black p-2 rounded-lg border border-gray-800">"${registro.notas}"</p>`;
                             extraDataHtml += `</div>`;
                         }
-                        if(registro.garmin_url) extraDataHtml += `<a href="${registro.garmin_url}" target="_blank" class="text-[10px] text-blue-400 hover:text-blue-300 underline block"><i class="fas fa-link"></i> Ver actividad en Garmin</a>`;
-                        if(registro.notas) extraDataHtml += `<p class="text-[10px] text-gray-400 italic bg-black p-2 rounded-lg border border-gray-800">"${registro.notas}"</p>`;
-                        extraDataHtml += `</div>`;
                     }
 
                     html += `<div class="p-4 border rounded-2xl ${borderColor}"><div class="flex items-center justify-between"><div class="pr-4"><span class="text-[9px] ${isCompleted ? 'text-green-400' : 'text-orange-500'} font-bold uppercase block">${r.dia_semana}</span><h4 class="text-sm font-black text-gray-100">${r.titulo}</h4><p class="text-[10px] text-gray-500 mt-1">${r.detalle}</p></div><div class="flex-shrink-0">${icon}</div></div>${extraDataHtml}</div>`;
                 });
-                document.getElementById('detail-content').innerHTML = html;
-            } catch(e) { document.getElementById('detail-content').innerHTML = '<p class="text-red-500 text-center py-4">Error al cargar.</p>'; }
+                
+                document.getElementById('modal-routines-list').innerHTML = html;
+
+                // Actualizar los números del Coach Dashboard
+                document.getElementById('modal-tot-miles').innerText = totalMillas.toFixed(1);
+                document.getElementById('modal-avg-hr').innerText = countHr > 0 ? Math.round(sumHr / countHr) : '--';
+                
+                // Mostrar el Dashboard del Modal
+                document.getElementById('coach-modal-dashboard').classList.remove('hidden');
+
+                // Dibujar la gráfica del Coach
+                const ctx = document.getElementById('coachProgressChart').getContext('2d');
+                if(coachChartInstance) coachChartInstance.destroy();
+
+                coachChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'],
+                        datasets: [{
+                            label: 'Millas Semanales',
+                            data: Object.values(datosSemanales),
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)', // Azul para diferenciar del naranja del atleta
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } },
+                            x: { grid: { display: false }, ticks: { color: '#6b7280' } }
+                        }
+                    }
+                });
+
+            } catch(e) { document.getElementById('modal-routines-list').innerHTML = '<p class="text-red-500 text-center py-4">Error al cargar.</p>'; }
             document.getElementById('detail-loading').classList.add('hidden');
         }
 
@@ -483,11 +554,8 @@
             } catch(e) { btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error'; }
         }
 
-        // MOTOR DE ANÁLISIS VIRTUAL Y GRÁFICAS
         function generarDashboardAtleta() {
-            let totalMillas = 0;
-            let sumHr = 0, countHr = 0;
-            let rutinasCompletadas = 0;
+            let totalMillas = 0; let sumHr = 0, countHr = 0; let rutinasCompletadas = 0;
             let datosSemanales = { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0 };
 
             for(let s=1; s<=8; s++) {
@@ -495,10 +563,7 @@
                     const reg = registrosCloud[rutina.id_db];
                     if(reg && reg.completado) {
                         rutinasCompletadas++;
-                        if(reg.dist) {
-                            totalMillas += reg.dist;
-                            datosSemanales[s] += reg.dist;
-                        }
+                        if(reg.dist) { totalMillas += reg.dist; datosSemanales[s] += reg.dist; }
                         if(reg.hr) { sumHr += reg.hr; countHr++; }
                     }
                 });
@@ -508,58 +573,26 @@
             document.getElementById('dash-tot-miles').innerText = totalMillas.toFixed(1);
             document.getElementById('dash-avg-hr').innerText = avgHr > 0 ? avgHr : '--';
 
-            // Lógica del Coach Virtual
             let analysisText = "";
-            if (rutinasCompletadas === 0) {
-                analysisText = "<p>Aún no hay datos registrados. ¡Es momento de amarrarse los tenis y dar el primer paso hacia tu meta!</p>";
-            } else {
+            if (rutinasCompletadas === 0) analysisText = "<p>Aún no hay datos registrados. ¡Es momento de amarrarse los tenis y dar el primer paso hacia tu meta!</p>";
+            else {
                 analysisText = `<p>¡Buen trabajo! Has completado <b>${rutinasCompletadas} sesiones</b> hasta ahora, sumando un total de <b>${totalMillas.toFixed(1)} millas</b>.</p>`;
-                
                 if (avgHr > 0) {
-                    if (avgHr < 145) {
-                        analysisText += `<p class="mt-2">Tu ritmo cardíaco promedio de <b>${avgHr} BPM</b> indica un trabajo aeróbico súper eficiente. Estás construyendo una excelente base sin quemar el motor.</p>`;
-                    } else if (avgHr >= 145 && avgHr <= 165) {
-                        analysisText += `<p class="mt-2">Mantienes un esfuerzo moderado-alto con <b>${avgHr} BPM</b>. Recuerda que los días de CACO suave deben sentirse cómodos, ¡no fuerces el paso si no toca!</p>`;
-                    } else {
-                        analysisText += `<p class="mt-2">Tu promedio cardíaco está alto (<b>${avgHr} BPM</b>). ¡Asegúrate de respetar los días de recuperación corriendo más lento de lo que crees necesario!</p>`;
-                    }
+                    if (avgHr < 145) analysisText += `<p class="mt-2">Tu ritmo cardíaco promedio de <b>${avgHr} BPM</b> indica un trabajo aeróbico súper eficiente. Estás construyendo una excelente base sin quemar el motor.</p>`;
+                    else if (avgHr >= 145 && avgHr <= 165) analysisText += `<p class="mt-2">Mantienes un esfuerzo moderado-alto con <b>${avgHr} BPM</b>. Recuerda que los días de CACO suave deben sentirse cómodos, ¡no fuerces el paso si no toca!</p>`;
+                    else analysisText += `<p class="mt-2">Tu promedio cardíaco está alto (<b>${avgHr} BPM</b>). ¡Asegúrate de respetar los días de recuperación corriendo más lento de lo que crees necesario!</p>`;
                 }
-
-                if (totalMillas > 15) {
-                    analysisText += `<p class="mt-2 text-orange-400 font-bold">Estás acumulando un volumen clave. Tu cuerpo ya se está adaptando al esfuerzo prolongado. ¡El 10K está cerca!</p>`;
-                } else if (totalMillas > 5) {
-                    analysisText += `<p class="mt-2 text-orange-400 font-bold">El motor ya está encendido y la constancia se nota. Sigue sumando millas con paciencia.</p>`;
-                }
+                if (totalMillas > 15) analysisText += `<p class="mt-2 text-orange-400 font-bold">Estás acumulando un volumen clave. Tu cuerpo ya se está adaptando al esfuerzo prolongado. ¡El 10K está cerca!</p>`;
+                else if (totalMillas > 5) analysisText += `<p class="mt-2 text-orange-400 font-bold">El motor ya está encendido y la constancia se nota. Sigue sumando millas con paciencia.</p>`;
             }
-            
             document.getElementById('dash-analysis-text').innerHTML = analysisText;
 
-            // Dibujar Gráfica
             const ctx = document.getElementById('progressChart').getContext('2d');
             if(chartInstance) chartInstance.destroy(); 
-
             chartInstance = new Chart(ctx, {
                 type: 'bar',
-                data: {
-                    labels: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'],
-                    datasets: [{
-                        label: 'Millas Acumuladas',
-                        data: Object.values(datosSemanales),
-                        backgroundColor: 'rgba(249, 115, 22, 0.5)',
-                        borderColor: 'rgba(249, 115, 22, 1)',
-                        borderWidth: 1,
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#9ca3af' } },
-                        x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
-                    }
-                }
+                data: { labels: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'], datasets: [{ label: 'Millas', data: Object.values(datosSemanales), backgroundColor: 'rgba(249, 115, 22, 0.5)', borderColor: 'rgba(249, 115, 22, 1)', borderWidth: 1, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#9ca3af' } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } }
             });
         }
 
@@ -575,16 +608,9 @@
             const notes = document.getElementById('coach-notes').value;
 
             let report = `🏃‍♀️ *REPORTE DE ENTRENAMIENTO*\n\n*Atleta:* ${atletaName}\n*Semana:* ${currentWeek}\n\n✅ *${req.dia}:* ${req.tarea}\n`;
-            if (dist || pace || hr) {
-                report += `└ `;
-                if(dist) report += `⌚ ${dist}mi `;
-                if(pace) report += `⚡ ${pace}/mi `;
-                if(hr) report += `❤️ ${hr}bpm`;
-                report += `\n`;
-            }
+            if (dist || pace || hr) { report += `└ `; if(dist) report += `⌚ ${dist}mi `; if(pace) report += `⚡ ${pace}/mi `; if(hr) report += `❤️ ${hr}bpm`; report += `\n`; }
             if (url) report += `\n🔗 *Actividad:* ${url}\n`;
             if (notes) report += `\n*NOTAS:*\n"${notes}"\n`;
-            
             window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
         }
 
