@@ -10,13 +10,13 @@ const ordenDias = { 'Lunes': 1, 'Martes': 2, 'Miércoles': 3, 'Miercoles': 3, 'J
 export default function AthleteHub({ userName }) {
     const [activeTab, setActiveTab] = useState('plan');
     const [loading, setLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
     const [plan, setPlan] = useState(null);
     const [currentWeek, setCurrentWeek] = useState(1);
     
     const [routinesByWeek, setRoutinesByWeek] = useState({});
     const [records, setRecords] = useState({});
 
-    // Formulario de Reporte
     const [selectedRoutineId, setSelectedRoutineId] = useState('');
     const [formDist, setFormDist] = useState('');
     const [formPace, setFormPace] = useState('');
@@ -24,11 +24,10 @@ export default function AthleteHub({ userName }) {
     const [formUrl, setFormUrl] = useState('');
     const [formNotes, setFormNotes] = useState('');
     const [saving, setSaving] = useState(false);
-
-    // NUEVO: Estados para el Modal de Sugerencias
+    
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [feedbackText, setFeedbackText] = useState('');
-    const [feedbackStatus, setFeedbackStatus] = useState('idle'); // idle, sending, success, error
+    const [feedbackStatus, setFeedbackStatus] = useState('idle');
 
     const [seconds, setSeconds] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
@@ -47,12 +46,13 @@ export default function AthleteHub({ userName }) {
     }, [selectedRoutineId, records]);
 
     async function cargarDatosDelAtleta() {
+        setIsSyncing(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             const { data: planData } = await supabase.from('planes_entrenamiento')
                 .select('*').eq('atleta_id', user.id).eq('estado', 'activo').order('fecha_creacion', { ascending: false }).limit(1).single();
 
-            if (!planData) { setLoading(false); return; }
+            if (!planData) { setLoading(false); setIsSyncing(false); return; }
             setPlan(planData);
 
             const { data: rutinas } = await supabase.from('rutinas_programadas').select('*').eq('plan_id', planData.id);
@@ -70,7 +70,7 @@ export default function AthleteHub({ userName }) {
             }
             setRoutinesByWeek(semanas);
         } catch (error) { console.error("Error:", error); } 
-        finally { setLoading(false); }
+        finally { setLoading(false); setIsSyncing(false); }
     }
 
     async function toggleTask(rutinaId, isChecked) {
@@ -129,18 +129,13 @@ export default function AthleteHub({ userName }) {
         window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
     }
 
-    // NUEVO: FUNCIONES DEL BUZÓN DE SUGERENCIAS
     async function enviarSugerencia() {
         if (!feedbackText.trim()) return;
         setFeedbackStatus('sending');
         try {
             await supabase.from('sugerencias').insert([{ nombre_atleta: userName, mensaje: feedbackText }]);
             setFeedbackStatus('success');
-            setTimeout(() => {
-                setShowFeedbackModal(false);
-                setFeedbackText('');
-                setFeedbackStatus('idle');
-            }, 2000);
+            setTimeout(() => { setShowFeedbackModal(false); setFeedbackText(''); setFeedbackStatus('idle'); }, 2000);
         } catch (error) {
             setFeedbackStatus('error');
             setTimeout(() => setFeedbackStatus('idle'), 3000);
@@ -173,6 +168,7 @@ export default function AthleteHub({ userName }) {
     if (!plan) return <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center text-center p-6"><h1 className="text-3xl font-black italic mb-4">JS <span className="text-orange-500">RUNNING</span></h1><p>No tienes un plan activo.</p></div>;
 
     const rutinasActuales = routinesByWeek[currentWeek] || [];
+    const rutinaSeleccionadaInfo = rutinasActuales.find(r => r.id.toString() === selectedRoutineId.toString());
 
     return (
         <div className="min-h-screen bg-black text-gray-100 font-sans pb-24 relative">
@@ -181,7 +177,14 @@ export default function AthleteHub({ userName }) {
                     <h1 className="text-xl font-black italic tracking-tighter">JS <span className="text-orange-500">RUNNING CLUB</span></h1>
                     <div className="flex flex-col text-[9px] uppercase tracking-widest font-bold text-gray-500 mt-1"><span>Atleta: <span className="text-white">{userName}</span></span></div>
                 </div>
-                <button onClick={() => supabase.auth.signOut()} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400 transition-colors"><i className="fas fa-sign-out-alt"></i> Salir</button>
+                <div className="flex gap-3">
+                    <button onClick={cargarDatosDelAtleta} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-blue-400 hover:text-blue-300 transition-colors" title="Sincronizar datos">
+                        <i className={`fas fa-sync-alt ${isSyncing ? 'fa-spin' : ''}`}></i>
+                    </button>
+                    <button onClick={() => supabase.auth.signOut()} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400 transition-colors">
+                        <i className="fas fa-sign-out-alt"></i> Salir
+                    </button>
+                </div>
             </header>
 
             <main className="p-4 max-w-md mx-auto space-y-6 mt-2">
@@ -196,12 +199,8 @@ export default function AthleteHub({ userName }) {
                             <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Cronómetro JS</h2>
                             <div className="text-5xl font-mono font-bold mb-4 text-white">{formatTime(seconds)}</div>
                             <div className="flex justify-center gap-4">
-                                <button onClick={toggleTimer} className="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform">
-                                    <i className={`fas ${isRunning ? 'fa-pause' : 'fa-play'} text-white`}></i>
-                                </button>
-                                <button onClick={resetTimer} className="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform">
-                                    <i className="fas fa-redo text-gray-400"></i>
-                                </button>
+                                <button onClick={toggleTimer} className="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"><i className={`fas ${isRunning ? 'fa-pause' : 'fa-play'} text-white`}></i></button>
+                                <button onClick={resetTimer} className="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform"><i className="fas fa-redo text-gray-400"></i></button>
                             </div>
                         </section>
 
@@ -226,10 +225,12 @@ export default function AthleteHub({ userName }) {
                                             </div>
                                             <input type="checkbox" checked={isChecked} onChange={(e) => toggleTask(rutina.id, e.target.checked)} className="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer accent-orange-500"/>
                                         </div>
-                                        {rutina.notas_coach && (
+                                        
+                                        {/* NOTA DEL COACH EN LA LISTA */}
+                                        {rutina.notas_coach && rutina.notas_coach.trim() !== '' && (
                                             <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">
                                                 <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-bullhorn"></i> Nota del Coach:</p>
-                                                <p className="text-xs text-orange-100">{rutina.notas_coach}</p>
+                                                <p className="text-xs text-orange-100 whitespace-pre-wrap">{rutina.notas_coach}</p>
                                             </div>
                                         )}
                                     </div>
@@ -239,10 +240,20 @@ export default function AthleteHub({ userName }) {
 
                         <section className="bg-gray-900 p-6 rounded-3xl border border-gray-800 space-y-4 shadow-lg">
                             <h3 className="text-[10px] font-black uppercase text-orange-500 tracking-widest border-b border-gray-800 pb-2"><i className="fas fa-cloud-upload-alt"></i> Detalles de Hoy</h3>
+                            
                             <select value={selectedRoutineId} onChange={(e) => setSelectedRoutineId(e.target.value)} className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-gray-300">
                                 <option value="">Selecciona el entrenamiento...</option>
                                 {rutinasActuales.map(r => <option key={r.id} value={r.id}>{r.dia_semana} - {r.titulo}</option>)}
                             </select>
+
+                            {/* NOTA DEL COACH REPETIDA DENTRO DEL FORMULARIO PARA MAYOR VISIBILIDAD */}
+                            {rutinaSeleccionadaInfo?.notas_coach && rutinaSeleccionadaInfo.notas_coach.trim() !== '' && (
+                                <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-xl mb-4">
+                                    <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-exclamation-circle"></i> Recuerda la nota del Coach:</p>
+                                    <p className="text-xs text-orange-100">{rutinaSeleccionadaInfo.notas_coach}</p>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-2 gap-4">
                                 <input type="number" step="0.01" value={formDist} onChange={e => setFormDist(e.target.value)} placeholder="Millas (Ej: 2.5)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
                                 <input type="text" value={formPace} onChange={e => setFormPace(e.target.value)} placeholder="Paso (Ej: 13:17)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
@@ -274,48 +285,19 @@ export default function AthleteHub({ userName }) {
                 )}
             </main>
 
-            {/* BOTÓN FLOTANTE (FAB) PARA SUGERENCIAS */}
-            <button 
-                onClick={() => setShowFeedbackModal(true)}
-                className="fixed bottom-6 right-6 bg-orange-600 hover:bg-orange-500 text-white w-14 h-14 rounded-full shadow-2xl shadow-orange-600/50 flex items-center justify-center text-2xl transition-transform active:scale-90 z-40"
-            >
+            <button onClick={() => setShowFeedbackModal(true)} className="fixed bottom-6 right-6 bg-orange-600 hover:bg-orange-500 text-white w-14 h-14 rounded-full shadow-2xl shadow-orange-600/50 flex items-center justify-center text-2xl transition-transform active:scale-90 z-40">
                 <i className="fas fa-comment-dots"></i>
             </button>
 
-            {/* MODAL DE SUGERENCIAS */}
             {showFeedbackModal && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm relative shadow-2xl">
-                        <button 
-                            onClick={() => setShowFeedbackModal(false)} 
-                            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-                        >
-                            <i className="fas fa-times text-xl"></i>
-                        </button>
-                        
+                        <button onClick={() => setShowFeedbackModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><i className="fas fa-times text-xl"></i></button>
                         <h2 className="text-lg font-black text-white mb-1"><i className="fas fa-lightbulb text-orange-500 mr-2"></i> Buzón del Atleta</h2>
                         <p className="text-xs text-gray-400 mb-4">¿Tienes alguna idea para mejorar la app o un comentario para el Coach? Te leemos.</p>
-                        
-                        <textarea 
-                            value={feedbackText} 
-                            onChange={e => setFeedbackText(e.target.value)} 
-                            placeholder="Escribe tu mensaje aquí..." 
-                            className="w-full bg-black border border-gray-700 rounded-xl p-4 text-sm text-white focus:border-orange-500 outline-none h-32 mb-4 resize-none"
-                        ></textarea>
-                        
-                        <button 
-                            onClick={enviarSugerencia} 
-                            disabled={feedbackStatus === 'sending' || !feedbackText.trim()}
-                            className={`w-full p-4 rounded-xl font-black text-sm transition flex items-center justify-center gap-2 ${
-                                feedbackStatus === 'success' ? 'bg-green-600 text-white' : 
-                                feedbackStatus === 'error' ? 'bg-red-600 text-white' :
-                                'bg-orange-600 hover:bg-orange-500 text-white'
-                            } disabled:opacity-50`}
-                        >
-                            {feedbackStatus === 'sending' ? <i className="fas fa-spinner fa-spin"></i> : 
-                             feedbackStatus === 'success' ? <><i className="fas fa-check"></i> Enviado</> : 
-                             feedbackStatus === 'error' ? 'Error al enviar' : 
-                             <><i className="fas fa-paper-plane"></i> Enviar Mensaje</>}
+                        <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} placeholder="Escribe tu mensaje aquí..." className="w-full bg-black border border-gray-700 rounded-xl p-4 text-sm text-white focus:border-orange-500 outline-none h-32 mb-4 resize-none"></textarea>
+                        <button onClick={enviarSugerencia} disabled={feedbackStatus === 'sending' || !feedbackText.trim()} className={`w-full p-4 rounded-xl font-black text-sm transition flex items-center justify-center gap-2 ${feedbackStatus === 'success' ? 'bg-green-600 text-white' : feedbackStatus === 'error' ? 'bg-red-600 text-white' : 'bg-orange-600 hover:bg-orange-500 text-white'} disabled:opacity-50`}>
+                            {feedbackStatus === 'sending' ? <i className="fas fa-spinner fa-spin"></i> : feedbackStatus === 'success' ? <><i className="fas fa-check"></i> Enviado</> : feedbackStatus === 'error' ? 'Error al enviar' : <><i className="fas fa-paper-plane"></i> Enviar Mensaje</>}
                         </button>
                     </div>
                 </div>
