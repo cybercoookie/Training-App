@@ -16,6 +16,7 @@ export default function CoachDashboard({ coachName }) {
     
     const [editingNoteId, setEditingNoteId] = useState(null);
     const [tempNoteText, setTempNoteText] = useState('');
+    const [isSavingNote, setIsSavingNote] = useState(false);
 
     useEffect(() => { cargarAtletas(); }, []);
 
@@ -50,16 +51,29 @@ export default function CoachDashboard({ coachName }) {
         } catch(e) { console.error(e); }
     }
 
+    // CORRECCIÓN: GUARDAR NOTA DEL COACH CON MANEJO DE ERRORES ESTRICTO
     async function guardarNotaCoach(rutinaId) {
+        setIsSavingNote(true);
         try {
-            await supabase.from('rutinas_programadas').update({ notas_coach: tempNoteText }).eq('id', rutinaId);
+            // El cambio clave: Extraer el objeto 'error' directamente de la respuesta de Supabase
+            const { error } = await supabase.from('rutinas_programadas')
+                .update({ notas_coach: tempNoteText })
+                .eq('id', rutinaId);
+            
+            if (error) throw error;
+
+            // Si no hay error, actualizamos la vista local
             setRoutines(prevRoutines => prevRoutines.map(r => r.id === rutinaId ? { ...r, notas_coach: tempNoteText } : r));
             setEditingNoteId(null);
             setTempNoteText('');
-        } catch(e) { alert("Error al guardar la nota"); }
+        } catch(e) { 
+            console.error("Error detallado de Supabase:", e);
+            alert(`Error al guardar en la nube: ${e.message || "Por favor intenta de nuevo."}`); 
+        } finally {
+            setIsSavingNote(false);
+        }
     }
 
-    // LÓGICA DE EXPORTACIÓN PARA EL COACH
     function exportarReporte() {
         if (!selectedAthlete) return;
         let reporte = `🏃‍♀️ REPORTE DE ENTRENAMIENTO - JS RUNNING CLUB\nAtleta: ${selectedAthlete.nombreAtleta}\nPlan: ${selectedAthlete.titulo}\n\n`;
@@ -139,7 +153,6 @@ export default function CoachDashboard({ coachName }) {
 
                         <div className="overflow-y-auto flex-1 p-6 space-y-6">
                             
-                            {/* BOTÓN DE EXPORTAR DEL COACH */}
                             <button onClick={exportarReporte} className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black text-white text-sm transition flex items-center justify-center gap-2">
                                 <i className="fas fa-file-export"></i> EXPORTAR HISTORIAL (TXT)
                             </button>
@@ -180,8 +193,10 @@ export default function CoachDashboard({ coachName }) {
                                                         <div className="space-y-2">
                                                             <textarea value={tempNoteText} onChange={e => setTempNoteText(e.target.value)} placeholder="Aclara el ejercicio o añade notas..." className="w-full bg-black border border-orange-500/50 rounded p-2 text-xs text-white"/>
                                                             <div className="flex gap-2">
-                                                                <button onClick={() => guardarNotaCoach(r.id)} className="bg-orange-600 text-white text-[10px] px-3 py-1 rounded font-bold">Guardar</button>
-                                                                <button onClick={() => setEditingNoteId(null)} className="bg-gray-800 text-gray-300 text-[10px] px-3 py-1 rounded font-bold">Cancelar</button>
+                                                                <button onClick={() => guardarNotaCoach(r.id)} disabled={isSavingNote} className="bg-orange-600 hover:bg-orange-700 text-white text-[10px] px-3 py-1 rounded font-bold transition">
+                                                                    {isSavingNote ? 'Guardando...' : 'Guardar'}
+                                                                </button>
+                                                                <button onClick={() => setEditingNoteId(null)} disabled={isSavingNote} className="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-3 py-1 rounded font-bold transition">Cancelar</button>
                                                             </div>
                                                         </div>
                                                     ) : (
