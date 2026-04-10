@@ -55,20 +55,24 @@ export default function CoachDashboard({ coachName }) {
     async function guardarNotaCoach(rutinaId) {
         setIsSavingNote(true);
         try {
-            // El cambio clave: Extraer el objeto 'error' directamente de la respuesta de Supabase
-            const { error } = await supabase.from('rutinas_programadas')
+            // Le añadimos .select().single() para obligar a Supabase a confirmar el guardado
+            const { data, error } = await supabase.from('rutinas_programadas')
                 .update({ notas_coach: tempNoteText })
-                .eq('id', rutinaId);
+                .eq('id', rutinaId)
+                .select()
+                .single();
             
+            // Si hay error o si 'data' viene vacío, significa que el servidor lo rebotó
             if (error) throw error;
+            if (!data) throw new Error("La base de datos bloqueó la actualización (0 filas afectadas).");
 
-            // Si no hay error, actualizamos la vista local
+            // Si todo salió bien, actualizamos la vista
             setRoutines(prevRoutines => prevRoutines.map(r => r.id === rutinaId ? { ...r, notas_coach: tempNoteText } : r));
             setEditingNoteId(null);
             setTempNoteText('');
         } catch(e) { 
-            console.error("Error detallado de Supabase:", e);
-            alert(`Error al guardar en la nube: ${e.message || "Por favor intenta de nuevo."}`); 
+            console.error("Error al guardar:", e);
+            alert(`Error: ${e.message}`); 
         } finally {
             setIsSavingNote(false);
         }
