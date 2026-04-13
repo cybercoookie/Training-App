@@ -204,12 +204,39 @@ export default function AthleteHub({ userName }) {
                             </div>
                         </section>
 
+                        {/* SELECTOR DE SEMANAS INTELIGENTE */}
                         <div className="flex overflow-x-auto gap-4 border-b border-gray-900 pb-3 no-scrollbar">
-                            {[1,2,3,4,5,6,7,8].map(w => (
-                                <button key={w} onClick={() => setCurrentWeek(w)} className={`px-3 py-1 font-black text-xs rounded-full transition-colors ${currentWeek === w ? 'bg-orange-500 text-white' : 'bg-gray-900 text-gray-500 border border-gray-800'}`}>
-                                    {w === 8 ? '🏁' : `S${w}`}
-                                </button>
-                            ))}
+                            {[1,2,3,4,5,6,7,8].map(w => {
+                                // Lógica para saber si completó todos los entrenamientos de la semana 'w'
+                                const rutinasDeEstaSemana = routinesByWeek[w] || [];
+                                const tieneRutinas = rutinasDeEstaSemana.length > 0;
+                                const estaCompletada = tieneRutinas && rutinasDeEstaSemana.every(r => records[r.id]?.completado);
+                                
+                                let btnClasses = "px-3 py-1 font-black text-xs rounded-full transition-all border flex items-center gap-1 ";
+                                
+                                if (estaCompletada) {
+                                    btnClasses += "bg-[#064e3b] text-green-400 border-green-500/50 "; // Verde completado
+                                } else {
+                                    btnClasses += "bg-gray-900 text-gray-500 border-gray-800 "; // Gris incompleto
+                                }
+                                
+                                if (currentWeek === w) {
+                                    if (estaCompletada) {
+                                        // Verde completado, pero con anillo naranja brillante porque la está viendo ahora
+                                        btnClasses += "ring-2 ring-orange-500 ring-offset-2 ring-offset-black !bg-green-600 !text-white !border-green-500 ";
+                                    } else {
+                                        // Naranja clásico de selección activa
+                                        btnClasses = btnClasses.replace('bg-gray-900 text-gray-500 border-gray-800', 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20');
+                                    }
+                                }
+
+                                return (
+                                    <button key={w} onClick={() => setCurrentWeek(w)} className={btnClasses}>
+                                        {estaCompletada && <i className="fas fa-check-circle text-[10px]"></i>}
+                                        {w === 8 ? '🏁' : `S${w}`}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         <div className="space-y-4">
@@ -225,8 +252,6 @@ export default function AthleteHub({ userName }) {
                                             </div>
                                             <input type="checkbox" checked={isChecked} onChange={(e) => toggleTask(rutina.id, e.target.checked)} className="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer accent-orange-500"/>
                                         </div>
-                                        
-                                        {/* NOTA DEL COACH EN LA LISTA */}
                                         {rutina.notas_coach && rutina.notas_coach.trim() !== '' && (
                                             <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">
                                                 <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-bullhorn"></i> Nota del Coach:</p>
@@ -246,7 +271,6 @@ export default function AthleteHub({ userName }) {
                                 {rutinasActuales.map(r => <option key={r.id} value={r.id}>{r.dia_semana} - {r.titulo}</option>)}
                             </select>
 
-                            {/* NOTA DEL COACH REPETIDA DENTRO DEL FORMULARIO PARA MAYOR VISIBILIDAD */}
                             {rutinaSeleccionadaInfo?.notas_coach && rutinaSeleccionadaInfo.notas_coach.trim() !== '' && (
                                 <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-xl mb-4">
                                     <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-exclamation-circle"></i> Recuerda la nota del Coach:</p>
