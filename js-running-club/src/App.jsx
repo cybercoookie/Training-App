@@ -115,4 +115,6 @@ async function cargarDatosDelAtleta() {
         setIsSyncing(false); 
     }
 }
+
+
 }

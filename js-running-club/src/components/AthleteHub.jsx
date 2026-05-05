@@ -205,39 +205,51 @@ export default function AthleteHub({ userName }) {
                         </section>
 
                         {/* SELECTOR DE SEMANAS INTELIGENTE */}
-                        <div className="flex overflow-x-auto gap-4 border-b border-gray-900 pb-3 no-scrollbar">
-                            {[1,2,3,4,5,6,7,8].map(w => {
-                                // Lógica para saber si completó todos los entrenamientos de la semana 'w'
-                                const rutinasDeEstaSemana = routinesByWeek[w] || [];
-                                const tieneRutinas = rutinasDeEstaSemana.length > 0;
-                                const estaCompletada = tieneRutinas && rutinasDeEstaSemana.every(r => records[r.id]?.completado);
-                                
-                                let btnClasses = "px-3 py-1 font-black text-xs rounded-full transition-all border flex items-center gap-1 ";
-                                
-                                if (estaCompletada) {
-                                    btnClasses += "bg-[#064e3b] text-green-400 border-green-500/50 "; // Verde completado
-                                } else {
-                                    btnClasses += "bg-gray-900 text-gray-500 border-gray-800 "; // Gris incompleto
-                                }
-                                
-                                if (currentWeek === w) {
-                                    if (estaCompletada) {
-                                        // Verde completado, pero con anillo naranja brillante porque la está viendo ahora
-                                        btnClasses += "ring-2 ring-orange-500 ring-offset-2 ring-offset-black !bg-green-600 !text-white !border-green-500 ";
-                                    } else {
-                                        // Naranja clásico de selección activa
-                                        btnClasses = btnClasses.replace('bg-gray-900 text-gray-500 border-gray-800', 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20');
-                                    }
-                                }
+                        {/* Busca este bloque dentro de {activeTab === 'plan' && (...)} */}
 
-                                return (
-                                    <button key={w} onClick={() => setCurrentWeek(w)} className={btnClasses}>
-                                        {estaCompletada && <i className="fas fa-check-circle text-[10px]"></i>}
-                                        {w === 8 ? '🏁' : `S${w}`}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                <div className="flex overflow-x-auto gap-4 border-b border-gray-900 pb-3 no-scrollbar">
+                {Object.keys(routinesByWeek).sort((a, b) => a - b).map(numStr => {
+                    const w = parseInt(numStr);
+                    const rutinasDeEstaSemana = routinesByWeek[w] || [];
+                    const tieneRutinas = rutinasDeEstaSemana.length > 0;
+                    
+                    // Lógica: Si todas las rutinas de esta semana tienen un registro completado
+                    const estaCompletada = tieneRutinas && rutinasDeEstaSemana.every(r => records[r.id]?.completado);
+                    
+                    // Determinamos si es la última semana del plan actual
+                    const totalSemanas = Object.keys(routinesByWeek).length;
+                    const esUltimaSemana = w === totalSemanas;
+
+                    let btnClasses = "px-3 py-1 font-black text-xs rounded-full transition-all border flex items-center gap-1 shrink-0 ";
+                    
+                    if (estaCompletada) {
+                        btnClasses += "bg-[#064e3b] text-green-400 border-green-500/50 "; // Verde si terminó todo
+                    } else {
+                        btnClasses += "bg-gray-900 text-gray-500 border-gray-800 "; // Gris si falta algo
+                    }
+                    
+                    if (currentWeek === w) {
+                        if (estaCompletada) {
+                            // Seleccionada y completada: Verde con borde naranja brillante
+                            btnClasses += "ring-2 ring-orange-500 ring-offset-2 ring-offset-black !bg-green-600 !text-white !border-green-500 ";
+                        } else {
+                            // Seleccionada pero incompleta: Naranja sólido
+                            btnClasses = btnClasses.replace('bg-gray-900 text-gray-500 border-gray-800', 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20');
+                        }
+                    }
+
+                    return (
+                        <button 
+                            key={w} 
+                            onClick={() => setCurrentWeek(w)} 
+                            className={btnClasses}
+                        >
+                            {estaCompletada && <i className="fas fa-check-circle text-[10px]"></i>}
+                            {esUltimaSemana ? '🏁' : `S${w}`}
+                        </button>
+                    );
+                })}
+            </div>
 
                         <div className="space-y-4">
                             {rutinasActuales.map(rutina => {
