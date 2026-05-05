@@ -60,4 +60,59 @@ export default function App() {
   } else {
     return <AthleteHub userName={userProfile?.nombre} />;
   }
+
+// Nueva funcion para cargar datos del atleta, ahora con soporte dinámico para semanas y orden de días
+
+async function cargarDatosDelAtleta() {
+    setIsSyncing(true);
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Buscamos el plan más reciente (independientemente de si es de 8 o 14 semanas)
+        const { data: planData } = await supabase.from('planes_entrenamiento')
+            .select('*')
+            .eq('atleta_id', user.id)
+            // Quitamos el filtro estricto de 'activo' para que mande la fecha de creación
+            .order('fecha_creacion', { ascending: false }) 
+            .limit(1)
+            .single();
+
+        if (!planData) { setLoading(false); setIsSyncing(false); return; }
+        setPlan(planData);
+
+        const { data: rutinas } = await supabase.from('rutinas_programadas')
+            .select('*')
+            .eq('plan_id', planData.id);
+        
+        const { data: ejecuciones } = await supabase.from('registros_ejecucion')
+            .select('*, rutinas_programadas!inner(plan_id)')
+            .eq('rutinas_programadas.plan_id', planData.id);
+
+        const registrosMap = {};
+        if (ejecuciones) ejecuciones.forEach(ej => registrosMap[ej.rutina_id] = ej);
+        setRecords(registrosMap);
+
+        // DINÁMICO: Detectamos el número máximo de semanas en las rutinas
+        const maxSemana = rutinas ? Math.max(...rutinas.map(r => r.semana), 1) : 1;
+        const semanas = {};
+        for(let i=1; i<=maxSemana; i++) semanas[i] = [];
+        
+        if (rutinas) {
+            rutinas.forEach(r => {
+                if (!semanas[r.semana]) semanas[r.semana] = [];
+                semanas[r.semana].push(r);
+            });
+            // Ordenar por día
+            Object.keys(semanas).forEach(s => {
+                semanas[s].sort((a, b) => (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99));
+            });
+        }
+        setRoutinesByWeek(semanas);
+    } catch (error) { 
+        console.error("Error cargando el nuevo plan:", error); 
+    } finally { 
+        setLoading(false); 
+        setIsSyncing(false); 
+    }
+}
 }
