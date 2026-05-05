@@ -11,9 +11,13 @@ export default function AthleteHub({ userName }) {
     const [activeTab, setActiveTab] = useState('plan');
     const [loading, setLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
-    const [plan, setPlan] = useState(null);
-    const [currentWeek, setCurrentWeek] = useState(1);
     
+    // NUEVOS ESTADOS PARA SOPORTAR MÚLTIPLES PLANES
+    const [allPlans, setAllPlans] = useState([]);
+    const [plan, setPlan] = useState(null);
+    const [selectedPlanId, setSelectedPlanId] = useState('');
+    
+    const [currentWeek, setCurrentWeek] = useState(1);
     const [routinesByWeek, setRoutinesByWeek] = useState({});
     const [records, setRecords] = useState({});
 
@@ -33,7 +37,7 @@ export default function AthleteHub({ userName }) {
     const [isRunning, setIsRunning] = useState(false);
     const timerRef = useRef(null);
 
-    useEffect(() => { cargarDatosDelAtleta(); }, []);
+    useEffect(() => { inicializarApp(); }, []);
 
     useEffect(() => {
         if (selectedRoutineId && records[selectedRoutineId]) {
@@ -45,24 +49,46 @@ export default function AthleteHub({ userName }) {
         }
     }, [selectedRoutineId, records]);
 
-    async function cargarDatosDelAtleta() {
+    // FUNCION PRINCIPAL: Busca TODOS los planes del atleta
+    async function inicializarApp() {
         setIsSyncing(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            const { data: planData } = await supabase.from('planes_entrenamiento')
-                .select('*').eq('atleta_id', user.id).eq('estado', 'activo').order('fecha_creacion', { ascending: false }).limit(1).single();
+            const { data: planes } = await supabase.from('planes_entrenamiento')
+                .select('*')
+                .eq('atleta_id', user.id)
+                .order('fecha_creacion', { ascending: false });
 
-            if (!planData) { setLoading(false); setIsSyncing(false); return; }
-            setPlan(planData);
+            if (planes && planes.length > 0) {
+                setAllPlans(planes);
+                // Carga los detalles del primer plan de la lista (el más reciente)
+                await cargarDetallesDelPlan(planes[0].id, planes);
+            } else {
+                setLoading(false);
+                setIsSyncing(false);
+            }
+        } catch (e) { 
+            console.error(e); 
+            setLoading(false); 
+            setIsSyncing(false); 
+        }
+    }
 
-            const { data: rutinas } = await supabase.from('rutinas_programadas').select('*').eq('plan_id', planData.id);
-            const { data: ejecuciones } = await supabase.from('registros_ejecucion').select('*, rutinas_programadas!inner(plan_id)').eq('rutinas_programadas.plan_id', planData.id);
+    // FUNCIÓN SECUNDARIA: Carga solo las rutinas del plan seleccionado
+    async function cargarDetallesDelPlan(planId, planesArray = allPlans) {
+        setIsSyncing(true);
+        try {
+            const planSeleccionado = planesArray.find(p => p.id === planId);
+            setPlan(planSeleccionado);
+            setSelectedPlanId(planId);
+
+            const { data: rutinas } = await supabase.from('rutinas_programadas').select('*').eq('plan_id', planId);
+            const { data: ejecuciones } = await supabase.from('registros_ejecucion').select('*, rutinas_programadas!inner(plan_id)').eq('rutinas_programadas.plan_id', planId);
 
             const registrosMap = {};
             if (ejecuciones) ejecuciones.forEach(ej => registrosMap[ej.rutina_id] = ej);
             setRecords(registrosMap);
 
-            // CÁLCULO DINÁMICO DE SEMANAS (Evita el error de las 8 semanas)
             const maxSemana = rutinas && rutinas.length > 0 ? Math.max(...rutinas.map(r => r.semana)) : 1;
             const semanas = {};
             for(let i=1; i<=maxSemana; i++) semanas[i] = [];
@@ -72,6 +98,10 @@ export default function AthleteHub({ userName }) {
                 for(let i=1; i<=maxSemana; i++) semanas[i].sort((a, b) => (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99));
             }
             setRoutinesByWeek(semanas);
+            
+            // Reiniciar la vista a la semana 1 al cambiar de plan
+            setCurrentWeek(1);
+            setSelectedRoutineId('');
         } catch (error) { console.error("Error:", error); } 
         finally { setLoading(false); setIsSyncing(false); }
     }
@@ -125,7 +155,7 @@ export default function AthleteHub({ userName }) {
         const req = routinesByWeek[currentWeek].find(r => r.id.toString() === selectedRoutineId.toString());
         if(!req) return;
 
-        let report = `🏃‍♀️ *REPORTE DE ENTRENAMIENTO*\n\n*Atleta:* ${userName}\n*Semana:* ${currentWeek}\n\n✅ *${req.dia_semana}:* ${req.titulo}\n`;
+        let report = `🏃‍♀️ *REPORTE DE ENTRENAMIENTO*\n\n*Atleta:* ${userName}\n*Plan:* ${plan?.titulo}\n*Semana:* ${currentWeek}\n\n✅ *${req.dia_semana}:* ${req.titulo}\n`;
         if (formDist || formPace || formHr) { report += `└ `; if(formDist) report += `⌚ ${formDist}mi `; if(formPace) report += `⚡ ${formPace}/mi `; if(formHr) report += `❤️ ${formHr}bpm`; report += `\n`; }
         if (formUrl) report += `\n🔗 *Actividad:* ${formUrl}\n`;
         if (formNotes) report += `\n*NOTAS:*\n"${formNotes}"\n`;
@@ -149,9 +179,8 @@ export default function AthleteHub({ userName }) {
     const resetTimer = () => { clearInterval(timerRef.current); setIsRunning(false); setSeconds(0); };
     const formatTime = (secs) => { const h = Math.floor(secs / 3600).toString().padStart(2, '0'); const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0'); const s = (secs % 60).toString().padStart(2, '0'); return `${h}:${m}:${s}`; };
 
-    // CÁLCULOS DEL DASHBOARD DINÁMICOS
     const maxSemanasPlan = Object.keys(routinesByWeek).length || 1;
-    let totalMillas = 0; let sumHr = 0, countHr = 0; let rutinasCompletadas = 0;
+    let totalMillas = 0; let sumHr = 0, countHr = 0; 
     
     let datosSemanales = new Array(maxSemanasPlan).fill(0);
     let etiquetasGrafica = Array.from({length: maxSemanasPlan}, (_, i) => `S${i + 1}`);
@@ -159,7 +188,6 @@ export default function AthleteHub({ userName }) {
     if (!loading && plan) {
         Object.values(records).forEach(reg => {
             if (reg.completado) {
-                rutinasCompletadas++;
                 if (reg.garmin_dist) {
                     totalMillas += reg.garmin_dist;
                     for(let w=1; w<=maxSemanasPlan; w++) { 
@@ -177,20 +205,20 @@ export default function AthleteHub({ userName }) {
     const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#9ca3af' } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } };
 
     if (loading) return <div className="min-h-screen bg-black text-orange-500 flex justify-center items-center font-bold">Sincronizando...</div>;
-    if (!plan) return <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center text-center p-6"><h1 className="text-3xl font-black italic mb-4">JS <span className="text-orange-500">RUNNING</span></h1><p>No tienes un plan activo.</p></div>;
 
     const rutinasActuales = routinesByWeek[currentWeek] || [];
     const rutinaSeleccionadaInfo = rutinasActuales.find(r => r.id.toString() === selectedRoutineId.toString());
 
     return (
         <div className="min-h-screen bg-black text-gray-100 font-sans pb-24 relative">
+            {/* EL HEADER AHORA SIEMPRE ESTÁ VISIBLE */}
             <header className="p-6 bg-black/90 backdrop-blur-md border-b border-gray-800 flex justify-between items-center sticky top-0 z-40">
                 <div>
                     <h1 className="text-xl font-black italic tracking-tighter">JS <span className="text-orange-500">RUNNING CLUB</span></h1>
                     <div className="flex flex-col text-[9px] uppercase tracking-widest font-bold text-gray-500 mt-1"><span>Atleta: <span className="text-white">{userName}</span></span></div>
                 </div>
                 <div className="flex gap-3">
-                    <button onClick={cargarDatosDelAtleta} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-blue-400 hover:text-blue-300 transition-colors" title="Sincronizar datos">
+                    <button onClick={inicializarApp} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-blue-400 hover:text-blue-300 transition-colors" title="Sincronizar datos">
                         <i className={`fas fa-sync-alt ${isSyncing ? 'fa-spin' : ''}`}></i>
                     </button>
                     <button onClick={() => supabase.auth.signOut()} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400 transition-colors">
@@ -199,133 +227,163 @@ export default function AthleteHub({ userName }) {
                 </div>
             </header>
 
-            <main className="p-4 max-w-md mx-auto space-y-6 mt-2">
-                <div className="flex justify-center gap-6 border-b border-gray-800 pb-2">
-                    <button onClick={() => setActiveTab('plan')} className={`pb-2 font-black text-sm uppercase tracking-wider transition-colors ${activeTab === 'plan' ? 'border-b-2 border-orange-500 text-orange-500' : 'text-gray-500'}`}><i className="fas fa-calendar-alt mr-1"></i> Mi Plan</button>
-                    <button onClick={() => setActiveTab('dash')} className={`pb-2 font-black text-sm uppercase tracking-wider transition-colors ${activeTab === 'dash' ? 'border-b-2 border-orange-500 text-orange-500' : 'text-gray-500'}`}><i className="fas fa-chart-line mr-1"></i> Progreso</button>
-                </div>
+            {/* SI NO HAY PLAN, MOSTRAMOS UN MENSAJE PERO MANTENEMOS EL HEADER */}
+            {!plan ? (
+                <main className="flex flex-col items-center justify-center p-6 h-[60vh] text-center">
+                    <i className="fas fa-running text-4xl text-gray-800 mb-4"></i>
+                    <h2 className="text-xl font-black text-gray-400 mb-2">Sin Asignaciones</h2>
+                    <p className="text-gray-600 text-sm">No tienes planes de entrenamiento vinculados a tu cuenta en este momento.</p>
+                </main>
+            ) : (
+                <main className="p-4 max-w-md mx-auto space-y-6 mt-2">
+                    <div className="flex justify-center gap-6 border-b border-gray-800 pb-2">
+                        <button onClick={() => setActiveTab('plan')} className={`pb-2 font-black text-sm uppercase tracking-wider transition-colors ${activeTab === 'plan' ? 'border-b-2 border-orange-500 text-orange-500' : 'text-gray-500'}`}><i className="fas fa-calendar-alt mr-1"></i> Mi Plan</button>
+                        <button onClick={() => setActiveTab('dash')} className={`pb-2 font-black text-sm uppercase tracking-wider transition-colors ${activeTab === 'dash' ? 'border-b-2 border-orange-500 text-orange-500' : 'text-gray-500'}`}><i className="fas fa-chart-line mr-1"></i> Progreso</button>
+                    </div>
 
-                {activeTab === 'plan' && (
-                    <div className="space-y-6">
-                        <section className="bg-gray-900 p-6 rounded-3xl border border-gray-800 text-center shadow-lg">
-                            <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Cronómetro JS</h2>
-                            <div className="text-5xl font-mono font-bold mb-4 text-white">{formatTime(seconds)}</div>
-                            <div className="flex justify-center gap-4">
-                                <button onClick={toggleTimer} className="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"><i className={`fas ${isRunning ? 'fa-pause' : 'fa-play'} text-white`}></i></button>
-                                <button onClick={resetTimer} className="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform"><i className="fas fa-redo text-gray-400"></i></button>
-                            </div>
-                        </section>
+                    {/* NUEVO: SELECTOR DE HISTORIAL DE PLANES */}
+                    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-lg mb-6">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                            <i className="fas fa-map-signs text-orange-500"></i> Historial de Carreras
+                        </label>
+                        <div className="relative">
+                            <select 
+                                value={selectedPlanId} 
+                                onChange={(e) => cargarDetallesDelPlan(e.target.value)}
+                                className="w-full bg-black border border-gray-700 rounded-xl p-3 text-sm text-white focus:border-orange-500 outline-none font-bold appearance-none cursor-pointer"
+                            >
+                                {allPlans.map(p => (
+                                    <option key={p.id} value={p.id}>
+                                        {p.titulo} {p.estado === 'completado' ? '(🏁 Completado)' : '(🏃 Activo)'}
+                                    </option>
+                                ))}
+                            </select>
+                            <i className="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"></i>
+                        </div>
+                    </div>
 
-                        <div className="flex overflow-x-auto gap-4 border-b border-gray-900 pb-3 no-scrollbar">
-                            {Object.keys(routinesByWeek)
-                                .sort((a, b) => parseInt(a) - parseInt(b))
-                                .map(numStr => {
-                                    const w = parseInt(numStr);
-                                    const rutinasDeEstaSemana = routinesByWeek[w] || [];
-                                    const tieneRutinas = rutinasDeEstaSemana.length > 0;
-                                    
-                                    const estaCompletada = tieneRutinas && rutinasDeEstaSemana.every(r => records[r.id]?.completado);
-                                    const totalSemanas = Object.keys(routinesByWeek).length;
-                                    const esUltimaSemana = w === totalSemanas;
+                    {activeTab === 'plan' && (
+                        <div className="space-y-6">
+                            <section className="bg-gray-900 p-6 rounded-3xl border border-gray-800 text-center shadow-lg">
+                                <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Cronómetro JS</h2>
+                                <div className="text-5xl font-mono font-bold mb-4 text-white">{formatTime(seconds)}</div>
+                                <div className="flex justify-center gap-4">
+                                    <button onClick={toggleTimer} className="bg-orange-600 w-12 h-12 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform"><i className={`fas ${isRunning ? 'fa-pause' : 'fa-play'} text-white`}></i></button>
+                                    <button onClick={resetTimer} className="bg-gray-800 w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform"><i className="fas fa-redo text-gray-400"></i></button>
+                                </div>
+                            </section>
 
-                                    let btnClasses = "px-3 py-1 font-black text-xs rounded-full transition-all border flex items-center gap-1 shrink-0 ";
-                                    
-                                    if (estaCompletada) {
-                                        btnClasses += "bg-[#064e3b] text-green-400 border-green-500/50 "; 
-                                    } else {
-                                        btnClasses += "bg-gray-900 text-gray-500 border-gray-800 "; 
-                                    }
-                                    
-                                    if (currentWeek === w) {
+                            <div className="flex overflow-x-auto gap-4 border-b border-gray-900 pb-3 no-scrollbar">
+                                {Object.keys(routinesByWeek)
+                                    .sort((a, b) => parseInt(a) - parseInt(b))
+                                    .map(numStr => {
+                                        const w = parseInt(numStr);
+                                        const rutinasDeEstaSemana = routinesByWeek[w] || [];
+                                        const tieneRutinas = rutinasDeEstaSemana.length > 0;
+                                        
+                                        const estaCompletada = tieneRutinas && rutinasDeEstaSemana.every(r => records[r.id]?.completado);
+                                        const totalSemanas = Object.keys(routinesByWeek).length;
+                                        const esUltimaSemana = w === totalSemanas;
+
+                                        let btnClasses = "px-3 py-1 font-black text-xs rounded-full transition-all border flex items-center gap-1 shrink-0 ";
+                                        
                                         if (estaCompletada) {
-                                            btnClasses += "ring-2 ring-orange-500 ring-offset-2 ring-offset-black !bg-green-600 !text-white !border-green-500 ";
+                                            btnClasses += "bg-[#064e3b] text-green-400 border-green-500/50 "; 
                                         } else {
-                                            btnClasses = btnClasses.replace('bg-gray-900 text-gray-500 border-gray-800', 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20');
+                                            btnClasses += "bg-gray-900 text-gray-500 border-gray-800 "; 
                                         }
-                                    }
+                                        
+                                        if (currentWeek === w) {
+                                            if (estaCompletada) {
+                                                btnClasses += "ring-2 ring-orange-500 ring-offset-2 ring-offset-black !bg-green-600 !text-white !border-green-500 ";
+                                            } else {
+                                                btnClasses = btnClasses.replace('bg-gray-900 text-gray-500 border-gray-800', 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20');
+                                            }
+                                        }
 
+                                        return (
+                                            <button 
+                                                key={w} 
+                                                onClick={() => setCurrentWeek(w)} 
+                                                className={btnClasses}
+                                            >
+                                                {estaCompletada && <i className="fas fa-check-circle text-[10px]"></i>}
+                                                {esUltimaSemana ? '🏁' : `S${w}`}
+                                            </button>
+                                        );
+                                    })}
+                            </div>
+
+                            <div className="space-y-4">
+                                {rutinasActuales.map(rutina => {
+                                    const isChecked = records[rutina.id]?.completado || false;
                                     return (
-                                        <button 
-                                            key={w} 
-                                            onClick={() => setCurrentWeek(w)} 
-                                            className={btnClasses}
-                                        >
-                                            {estaCompletada && <i className="fas fa-check-circle text-[10px]"></i>}
-                                            {esUltimaSemana ? '🏁' : `S${w}`}
-                                        </button>
+                                        <div key={rutina.id} className={`bg-gray-900 p-5 rounded-2xl border transition-colors ${isChecked ? 'border-green-500 bg-[#064e3b]/30' : 'border-gray-800'}`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex-1 mr-4">
+                                                    <span className="text-[10px] text-orange-500 font-black italic uppercase">{rutina.dia_semana}</span>
+                                                    <h3 className="text-lg font-black text-white">{rutina.titulo}</h3>
+                                                    <p className="text-xs text-gray-400">{rutina.detalle}</p>
+                                                </div>
+                                                <input type="checkbox" checked={isChecked} onChange={(e) => toggleTask(rutina.id, e.target.checked)} className="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer accent-orange-500"/>
+                                            </div>
+                                            {rutina.notas_coach && rutina.notas_coach.trim() !== '' && (
+                                                <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">
+                                                    <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-bullhorn"></i> Nota del Coach:</p>
+                                                    <p className="text-xs text-orange-100 whitespace-pre-wrap">{rutina.notas_coach}</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     );
                                 })}
-                        </div>
+                            </div>
 
-                        <div className="space-y-4">
-                            {rutinasActuales.map(rutina => {
-                                const isChecked = records[rutina.id]?.completado || false;
-                                return (
-                                    <div key={rutina.id} className={`bg-gray-900 p-5 rounded-2xl border transition-colors ${isChecked ? 'border-green-500 bg-[#064e3b]/30' : 'border-gray-800'}`}>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex-1 mr-4">
-                                                <span className="text-[10px] text-orange-500 font-black italic uppercase">{rutina.dia_semana}</span>
-                                                <h3 className="text-lg font-black text-white">{rutina.titulo}</h3>
-                                                <p className="text-xs text-gray-400">{rutina.detalle}</p>
-                                            </div>
-                                            <input type="checkbox" checked={isChecked} onChange={(e) => toggleTask(rutina.id, e.target.checked)} className="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer accent-orange-500"/>
-                                        </div>
-                                        {rutina.notas_coach && rutina.notas_coach.trim() !== '' && (
-                                            <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">
-                                                <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-bullhorn"></i> Nota del Coach:</p>
-                                                <p className="text-xs text-orange-100 whitespace-pre-wrap">{rutina.notas_coach}</p>
-                                            </div>
-                                        )}
+                            <section className="bg-gray-900 p-6 rounded-3xl border border-gray-800 space-y-4 shadow-lg">
+                                <h3 className="text-[10px] font-black uppercase text-orange-500 tracking-widest border-b border-gray-800 pb-2"><i className="fas fa-cloud-upload-alt"></i> Detalles de Hoy</h3>
+                                
+                                <select value={selectedRoutineId} onChange={(e) => setSelectedRoutineId(e.target.value)} className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-gray-300">
+                                    <option value="">Selecciona el entrenamiento...</option>
+                                    {rutinasActuales.map(r => <option key={r.id} value={r.id}>{r.dia_semana} - {r.titulo}</option>)}
+                                </select>
+
+                                {rutinaSeleccionadaInfo?.notas_coach && rutinaSeleccionadaInfo.notas_coach.trim() !== '' && (
+                                    <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-xl mb-4">
+                                        <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-exclamation-circle"></i> Recuerda la nota del Coach:</p>
+                                        <p className="text-xs text-orange-100">{rutinaSeleccionadaInfo.notas_coach}</p>
                                     </div>
-                                );
-                            })}
-                        </div>
+                                )}
 
-                        <section className="bg-gray-900 p-6 rounded-3xl border border-gray-800 space-y-4 shadow-lg">
-                            <h3 className="text-[10px] font-black uppercase text-orange-500 tracking-widest border-b border-gray-800 pb-2"><i className="fas fa-cloud-upload-alt"></i> Detalles de Hoy</h3>
-                            
-                            <select value={selectedRoutineId} onChange={(e) => setSelectedRoutineId(e.target.value)} className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm focus:border-orange-500 outline-none text-gray-300">
-                                <option value="">Selecciona el entrenamiento...</option>
-                                {rutinasActuales.map(r => <option key={r.id} value={r.id}>{r.dia_semana} - {r.titulo}</option>)}
-                            </select>
-
-                            {rutinaSeleccionadaInfo?.notas_coach && rutinaSeleccionadaInfo.notas_coach.trim() !== '' && (
-                                <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-xl mb-4">
-                                    <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-exclamation-circle"></i> Recuerda la nota del Coach:</p>
-                                    <p className="text-xs text-orange-100">{rutinaSeleccionadaInfo.notas_coach}</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input type="number" step="0.01" value={formDist} onChange={e => setFormDist(e.target.value)} placeholder="Millas (Ej: 2.5)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
+                                    <input type="text" value={formPace} onChange={e => setFormPace(e.target.value)} placeholder="Paso (Ej: 13:17)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
+                                    <input type="number" value={formHr} onChange={e => setFormHr(e.target.value)} placeholder="BPM (Ej: 145)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
+                                    <input type="url" value={formUrl} onChange={e => setFormUrl(e.target.value)} placeholder="Link Garmin" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
                                 </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <input type="number" step="0.01" value={formDist} onChange={e => setFormDist(e.target.value)} placeholder="Millas (Ej: 2.5)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
-                                <input type="text" value={formPace} onChange={e => setFormPace(e.target.value)} placeholder="Paso (Ej: 13:17)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
-                                <input type="number" value={formHr} onChange={e => setFormHr(e.target.value)} placeholder="BPM (Ej: 145)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
-                                <input type="url" value={formUrl} onChange={e => setFormUrl(e.target.value)} placeholder="Link Garmin" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
-                            </div>
-                            <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Notas para el Coach..." className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white h-20 focus:border-orange-500"></textarea>
-                            
-                            <div className="flex flex-col gap-2">
-                                <button onClick={guardarDetalles} disabled={saving} className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black text-white active:scale-95 transition">
-                                    {saving ? 'GUARDANDO...' : 'GUARDAR DETALLES'}
-                                </button>
-                                <button onClick={sendToCoachWhatsApp} className="w-full bg-green-500 hover:bg-green-600 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm border border-green-400 active:scale-95 text-white">
-                                    <i className="fab fa-whatsapp text-xl"></i> ENVIAR REPORTE DIARIO
-                                </button>
-                            </div>
-                        </section>
-                    </div>
-                )}
-
-                {activeTab === 'dash' && (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-900 p-5 rounded-3xl border border-gray-800 text-center"><p className="text-[10px] uppercase font-bold text-gray-400">Total Millas</p><h3 className="text-4xl font-black text-orange-500">{totalMillas.toFixed(1)}</h3></div>
-                            <div className="bg-gray-900 p-5 rounded-3xl border border-gray-800 text-center"><p className="text-[10px] uppercase font-bold text-gray-400">BPM Promedio</p><h3 className="text-4xl font-black text-red-500">{avgHr > 0 ? avgHr : '--'}</h3></div>
+                                <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Notas para el Coach..." className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white h-20 focus:border-orange-500"></textarea>
+                                
+                                <div className="flex flex-col gap-2">
+                                    <button onClick={guardarDetalles} disabled={saving} className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black text-white active:scale-95 transition">
+                                        {saving ? 'GUARDANDO...' : 'GUARDAR DETALLES'}
+                                    </button>
+                                    <button onClick={sendToCoachWhatsApp} className="w-full bg-green-500 hover:bg-green-600 p-4 rounded-xl font-black flex items-center justify-center gap-3 transition shadow-lg text-sm border border-green-400 active:scale-95 text-white">
+                                        <i className="fab fa-whatsapp text-xl"></i> ENVIAR REPORTE DIARIO
+                                    </button>
+                                </div>
+                            </section>
                         </div>
-                        <section className="bg-gray-900 p-6 rounded-3xl border border-gray-800"><div className="w-full h-64"><Bar data={chartData} options={chartOptions} /></div></section>
-                    </div>
-                )}
-            </main>
+                    )}
+
+                    {activeTab === 'dash' && (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-gray-900 p-5 rounded-3xl border border-gray-800 text-center"><p className="text-[10px] uppercase font-bold text-gray-400">Total Millas</p><h3 className="text-4xl font-black text-orange-500">{totalMillas.toFixed(1)}</h3></div>
+                                <div className="bg-gray-900 p-5 rounded-3xl border border-gray-800 text-center"><p className="text-[10px] uppercase font-bold text-gray-400">BPM Promedio</p><h3 className="text-4xl font-black text-red-500">{avgHr > 0 ? avgHr : '--'}</h3></div>
+                            </div>
+                            <section className="bg-gray-900 p-6 rounded-3xl border border-gray-800"><div className="w-full h-64"><Bar data={chartData} options={chartOptions} /></div></section>
+                        </div>
+                    )}
+                </main>
+            )}
 
             <button onClick={() => setShowFeedbackModal(true)} className="fixed bottom-6 right-6 bg-orange-600 hover:bg-orange-500 text-white w-14 h-14 rounded-full shadow-2xl shadow-orange-600/50 flex items-center justify-center text-2xl transition-transform active:scale-90 z-40">
                 <i className="fas fa-comment-dots"></i>
