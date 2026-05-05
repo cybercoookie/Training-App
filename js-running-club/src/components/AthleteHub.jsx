@@ -208,8 +208,9 @@ export default function AthleteHub({ userName }) {
                         {/* Busca este bloque dentro de {activeTab === 'plan' && (...)} */}
 
                 <div className="flex overflow-x-auto gap-4 border-b border-gray-900 pb-3 no-scrollbar">
-                {Object.keys(routinesByWeek).sort((a, b) => a - b).map(numStr => {
-                    const w = parseInt(numStr);
+                {Object.keys(routinesByWeek)
+                    .sort((a, b) => parseInt(a) - parseInt(b))
+                    .map(numStr => {const w = parseInt(numStr);
                     const rutinasDeEstaSemana = routinesByWeek[w] || [];
                     const tieneRutinas = rutinasDeEstaSemana.length > 0;
                     
