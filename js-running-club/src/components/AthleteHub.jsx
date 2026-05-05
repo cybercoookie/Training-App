@@ -62,11 +62,14 @@ export default function AthleteHub({ userName }) {
             if (ejecuciones) ejecuciones.forEach(ej => registrosMap[ej.rutina_id] = ej);
             setRecords(registrosMap);
 
+            // CÁLCULO DINÁMICO DE SEMANAS (Evita el error de las 8 semanas)
+            const maxSemana = rutinas && rutinas.length > 0 ? Math.max(...rutinas.map(r => r.semana)) : 1;
             const semanas = {};
-            for(let i=1; i<=8; i++) semanas[i] = [];
+            for(let i=1; i<=maxSemana; i++) semanas[i] = [];
+            
             if (rutinas) {
                 rutinas.forEach(r => semanas[r.semana].push(r));
-                for(let i=1; i<=8; i++) semanas[i].sort((a, b) => (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99));
+                for(let i=1; i<=maxSemana; i++) semanas[i].sort((a, b) => (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99));
             }
             setRoutinesByWeek(semanas);
         } catch (error) { console.error("Error:", error); } 
@@ -146,22 +149,31 @@ export default function AthleteHub({ userName }) {
     const resetTimer = () => { clearInterval(timerRef.current); setIsRunning(false); setSeconds(0); };
     const formatTime = (secs) => { const h = Math.floor(secs / 3600).toString().padStart(2, '0'); const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0'); const s = (secs % 60).toString().padStart(2, '0'); return `${h}:${m}:${s}`; };
 
+    // CÁLCULOS DEL DASHBOARD DINÁMICOS
+    const maxSemanasPlan = Object.keys(routinesByWeek).length || 1;
     let totalMillas = 0; let sumHr = 0, countHr = 0; let rutinasCompletadas = 0;
-    let datosSemanales = [0, 0, 0, 0, 0, 0, 0, 0];
+    
+    let datosSemanales = new Array(maxSemanasPlan).fill(0);
+    let etiquetasGrafica = Array.from({length: maxSemanasPlan}, (_, i) => `S${i + 1}`);
+
     if (!loading && plan) {
         Object.values(records).forEach(reg => {
             if (reg.completado) {
                 rutinasCompletadas++;
                 if (reg.garmin_dist) {
                     totalMillas += reg.garmin_dist;
-                    for(let w=1; w<=8; w++) { const existe = routinesByWeek[w]?.find(r => r.id === reg.rutina_id); if (existe) datosSemanales[w-1] += reg.garmin_dist; }
+                    for(let w=1; w<=maxSemanasPlan; w++) { 
+                        const existe = routinesByWeek[w]?.find(r => r.id === reg.rutina_id); 
+                        if (existe) datosSemanales[w-1] += reg.garmin_dist; 
+                    }
                 }
                 if (reg.garmin_hr) { sumHr += reg.garmin_hr; countHr++; }
             }
         });
     }
+    
     let avgHr = countHr > 0 ? Math.round(sumHr / countHr) : 0;
-    const chartData = { labels: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'], datasets: [{ label: 'Millas', data: datosSemanales, backgroundColor: 'rgba(249, 115, 22, 0.5)', borderColor: 'rgba(249, 115, 22, 1)', borderWidth: 1, borderRadius: 4 }] };
+    const chartData = { labels: etiquetasGrafica, datasets: [{ label: 'Millas', data: datosSemanales, backgroundColor: 'rgba(249, 115, 22, 0.5)', borderColor: 'rgba(249, 115, 22, 1)', borderWidth: 1, borderRadius: 4 }] };
     const chartOptions = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#9ca3af' } }, x: { grid: { display: false }, ticks: { color: '#9ca3af' } } } };
 
     if (loading) return <div className="min-h-screen bg-black text-orange-500 flex justify-center items-center font-bold">Sincronizando...</div>;
@@ -204,53 +216,46 @@ export default function AthleteHub({ userName }) {
                             </div>
                         </section>
 
-                        {/* SELECTOR DE SEMANAS INTELIGENTE */}
-                        {/* Busca este bloque dentro de {activeTab === 'plan' && (...)} */}
+                        <div className="flex overflow-x-auto gap-4 border-b border-gray-900 pb-3 no-scrollbar">
+                            {Object.keys(routinesByWeek)
+                                .sort((a, b) => parseInt(a) - parseInt(b))
+                                .map(numStr => {
+                                    const w = parseInt(numStr);
+                                    const rutinasDeEstaSemana = routinesByWeek[w] || [];
+                                    const tieneRutinas = rutinasDeEstaSemana.length > 0;
+                                    
+                                    const estaCompletada = tieneRutinas && rutinasDeEstaSemana.every(r => records[r.id]?.completado);
+                                    const totalSemanas = Object.keys(routinesByWeek).length;
+                                    const esUltimaSemana = w === totalSemanas;
 
-                <div className="flex overflow-x-auto gap-4 border-b border-gray-900 pb-3 no-scrollbar">
-                {Object.keys(routinesByWeek)
-                    .sort((a, b) => parseInt(a) - parseInt(b))
-                    .map(numStr => {const w = parseInt(numStr);
-                    const rutinasDeEstaSemana = routinesByWeek[w] || [];
-                    const tieneRutinas = rutinasDeEstaSemana.length > 0;
-                    
-                    // Lógica: Si todas las rutinas de esta semana tienen un registro completado
-                    const estaCompletada = tieneRutinas && rutinasDeEstaSemana.every(r => records[r.id]?.completado);
-                    
-                    // Determinamos si es la última semana del plan actual
-                    const totalSemanas = Object.keys(routinesByWeek).length;
-                    const esUltimaSemana = w === totalSemanas;
+                                    let btnClasses = "px-3 py-1 font-black text-xs rounded-full transition-all border flex items-center gap-1 shrink-0 ";
+                                    
+                                    if (estaCompletada) {
+                                        btnClasses += "bg-[#064e3b] text-green-400 border-green-500/50 "; 
+                                    } else {
+                                        btnClasses += "bg-gray-900 text-gray-500 border-gray-800 "; 
+                                    }
+                                    
+                                    if (currentWeek === w) {
+                                        if (estaCompletada) {
+                                            btnClasses += "ring-2 ring-orange-500 ring-offset-2 ring-offset-black !bg-green-600 !text-white !border-green-500 ";
+                                        } else {
+                                            btnClasses = btnClasses.replace('bg-gray-900 text-gray-500 border-gray-800', 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20');
+                                        }
+                                    }
 
-                    let btnClasses = "px-3 py-1 font-black text-xs rounded-full transition-all border flex items-center gap-1 shrink-0 ";
-                    
-                    if (estaCompletada) {
-                        btnClasses += "bg-[#064e3b] text-green-400 border-green-500/50 "; // Verde si terminó todo
-                    } else {
-                        btnClasses += "bg-gray-900 text-gray-500 border-gray-800 "; // Gris si falta algo
-                    }
-                    
-                    if (currentWeek === w) {
-                        if (estaCompletada) {
-                            // Seleccionada y completada: Verde con borde naranja brillante
-                            btnClasses += "ring-2 ring-orange-500 ring-offset-2 ring-offset-black !bg-green-600 !text-white !border-green-500 ";
-                        } else {
-                            // Seleccionada pero incompleta: Naranja sólido
-                            btnClasses = btnClasses.replace('bg-gray-900 text-gray-500 border-gray-800', 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/20');
-                        }
-                    }
-
-                    return (
-                        <button 
-                            key={w} 
-                            onClick={() => setCurrentWeek(w)} 
-                            className={btnClasses}
-                        >
-                            {estaCompletada && <i className="fas fa-check-circle text-[10px]"></i>}
-                            {esUltimaSemana ? '🏁' : `S${w}`}
-                        </button>
-                    );
-                })}
-            </div>
+                                    return (
+                                        <button 
+                                            key={w} 
+                                            onClick={() => setCurrentWeek(w)} 
+                                            className={btnClasses}
+                                        >
+                                            {estaCompletada && <i className="fas fa-check-circle text-[10px]"></i>}
+                                            {esUltimaSemana ? '🏁' : `S${w}`}
+                                        </button>
+                                    );
+                                })}
+                        </div>
 
                         <div className="space-y-4">
                             {rutinasActuales.map(rutina => {
