@@ -10,10 +10,16 @@ export default function CoachDashboard({ coachName }) {
     const [athletes, setAthletes] = useState([]);
     const [loading, setLoading] = useState(true);
     
+    // Modals y Estados de Gestión
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [newAthlete, setNewAthlete] = useState({ nombre: '', email: '', sexo: '', disciplina: '', deporte: '' });
+    const [importData, setImportData] = useState({ atletaId: '', meta: '21k' });
+
+    // Detalle de Atleta Seleccionado
     const [selectedAthlete, setSelectedAthlete] = useState(null);
     const [routines, setRoutines] = useState([]);
     const [records, setRecords] = useState({});
-    
     const [editingNoteId, setEditingNoteId] = useState(null);
     const [tempNoteText, setTempNoteText] = useState('');
     const [isSavingNote, setIsSavingNote] = useState(false);
@@ -21,201 +27,197 @@ export default function CoachDashboard({ coachName }) {
     useEffect(() => { cargarAtletas(); }, []);
 
     async function cargarAtletas() {
+        setLoading(true);
         try {
-            const { data: planes } = await supabase.from('planes_entrenamiento')
-                .select('id, titulo, atleta_id, perfiles!planes_entrenamiento_atleta_id_fkey(nombre)')
-                .eq('estado', 'activo').order('fecha_creacion', { ascending: false });
-
-            const planesUnicos = []; const nombresVistos = new Set();
-            for (const plan of planes || []) {
-                const nombre = plan.perfiles ? plan.perfiles.nombre : 'Atleta';
-                if (!nombresVistos.has(nombre)) { nombresVistos.add(nombre); planesUnicos.push({ ...plan, nombreAtleta: nombre }); }
-            }
-            setAthletes(planesUnicos);
+            const { data: perfiles } = await supabase.from('perfiles').select('*').eq('rol', 'atleta').order('nombre');
+            const { data: planes } = await supabase.from('planes_entrenamiento').select('*').eq('estado', 'activo');
+            
+            const atletasConPlan = perfiles?.map(p => ({
+                ...p,
+                planActivo: planes?.find(plan => plan.atleta_id === p.id)
+            }));
+            
+            setAthletes(atletasConPlan || []);
         } catch (error) { console.error(error); } 
         finally { setLoading(false); }
     }
 
-    async function abrirDetalle(plan) {
-        setSelectedAthlete(plan);
+    async function registrarAtleta(e) {
+        e.preventDefault();
         try {
-            const { data: rts } = await supabase.from('rutinas_programadas').select('*').eq('plan_id', plan.id);
-            const { data: recs } = await supabase.from('registros_ejecucion').select('*');
-            
-            rts.sort((a, b) => { if (a.semana !== b.semana) return a.semana - b.semana; return (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99); });
-            setRoutines(rts);
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email: newAthlete.email,
+                password: 'ChangeMe2026!',
+                options: { data: { nombre: newAthlete.nombre } }
+            });
 
-            const recMap = {};
-            if(recs) recs.forEach(ej => recMap[ej.rutina_id] = ej);
-            setRecords(recMap);
-        } catch(e) { console.error(e); }
+            if (authError) throw authError;
+
+            await supabase.from('perfiles').update({
+                nombre: newAthlete.nombre,
+                sexo: newAthlete.sexo,
+                disciplina: newAthlete.disciplina,
+                deporte: newAthlete.deporte,
+                email: newAthlete.email,
+                rol: 'atleta'
+            }).eq('id', authData.user.id);
+
+            alert("¡Atleta creado! Contraseña temporal: ChangeMe2026!");
+            setShowAddModal(false);
+            cargarAtletas();
+        } catch (error) { alert("Error: " + error.message); }
     }
 
-    // CORRECCIÓN: GUARDAR NOTA DEL COACH CON MANEJO DE ERRORES ESTRICTO
+    async function importarPlan() {
+        if (!importData.atletaId) return alert("Selecciona un atleta");
+        try {
+            const { data: plan, error: pErr } = await supabase.from('planes_entrenamiento')
+                .insert([{ titulo: `Objetivo ${importData.meta.toUpperCase()}`, atleta_id: importData.atletaId, coach_id: (await supabase.auth.getUser()).data.user.id, estado: 'activo' }]).select().single();
+            if (pErr) throw pErr;
+
+            const { data: plantillas } = await supabase.from('plantillas_planes').select('*').eq('meta', importData.meta);
+            if (plantillas?.length > 0) {
+                const rutinas = plantillas.map(p => ({ plan_id: plan.id, semana: p.semana, dia_semana: p.dia_semana, titulo: p.titulo, detalle: p.detalle }));
+                await supabase.from('rutinas_programadas').insert(rutinas);
+                alert("Plan importado con éxito.");
+            } else { alert("Plan creado, pero no se encontraron rutinas en la plantilla."); }
+            setShowImportModal(false);
+            cargarAtletas();
+        } catch (error) { alert("Error: " + error.message); }
+    }
+
+    async function abrirDetalle(atleta) {
+        if(!atleta.planActivo) { alert("Este atleta no tiene un plan activo para auditar."); return; }
+        setSelectedAthlete(atleta);
+        const { data: rts } = await supabase.from('rutinas_programadas').select('*').eq('plan_id', atleta.planActivo.id);
+        const { data: recs } = await supabase.from('registros_ejecucion').select('*');
+        rts.sort((a, b) => a.semana - b.semana || (ordenDias[a.dia_semana] || 99) - (ordenDias[b.dia_semana] || 99));
+        setRoutines(rts);
+        const recMap = {};
+        recs?.forEach(ej => recMap[ej.rutina_id] = ej);
+        setRecords(recMap);
+    }
+
     async function guardarNotaCoach(rutinaId) {
         setIsSavingNote(true);
         try {
-            // Le añadimos .select().single() para obligar a Supabase a confirmar el guardado
-            const { data, error } = await supabase.from('rutinas_programadas')
-                .update({ notas_coach: tempNoteText })
-                .eq('id', rutinaId)
-                .select()
-                .single();
-            
-            // Si hay error o si 'data' viene vacío, significa que el servidor lo rebotó
+            const { data, error } = await supabase.from('rutinas_programadas').update({ notas_coach: tempNoteText }).eq('id', rutinaId).select().single();
             if (error) throw error;
-            if (!data) throw new Error("La base de datos bloqueó la actualización (0 filas afectadas).");
-
-            // Si todo salió bien, actualizamos la vista
-            setRoutines(prevRoutines => prevRoutines.map(r => r.id === rutinaId ? { ...r, notas_coach: tempNoteText } : r));
+            setRoutines(prev => prev.map(r => r.id === rutinaId ? { ...r, notas_coach: tempNoteText } : r));
             setEditingNoteId(null);
-            setTempNoteText('');
-        } catch(e) { 
-            console.error("Error al guardar:", e);
-            alert(`Error: ${e.message}`); 
-        } finally {
-            setIsSavingNote(false);
-        }
+        } catch(e) { alert(`Error: ${e.message}`); } 
+        finally { setIsSavingNote(false); }
     }
-
-    function exportarReporte() {
-        if (!selectedAthlete) return;
-        let reporte = `🏃‍♀️ REPORTE DE ENTRENAMIENTO - JS RUNNING CLUB\nAtleta: ${selectedAthlete.nombreAtleta}\nPlan: ${selectedAthlete.titulo}\n\n`;
-        
-        const semanas = {};
-        for(let i=1; i<=8; i++) semanas[i] = [];
-        routines.forEach(r => semanas[r.semana].push(r));
-
-        for(let s=1; s<=8; s++) {
-            if(semanas[s] && semanas[s].length > 0) {
-                reporte += `==== SEMANA ${s} ====\n`;
-                semanas[s].forEach(r => {
-                    const rec = records[r.id];
-                    const status = rec?.completado ? '[X]' : '[ ]';
-                    reporte += `${status} ${r.dia_semana}: ${r.titulo}\n`;
-                    if(rec?.completado) {
-                        if(rec.garmin_dist) reporte += `    - Distancia: ${rec.garmin_dist} mi\n`;
-                        if(rec.garmin_pace) reporte += `    - Paso: ${rec.garmin_pace}/mi\n`;
-                        if(rec.garmin_hr) reporte += `    - BPM: ${rec.garmin_hr}\n`;
-                        if(rec.notas) reporte += `    - Notas Atleta: ${rec.notas}\n`;
-                    }
-                    if(r.notas_coach) reporte += `    - Nota del Coach: ${r.notas_coach}\n`;
-                });
-                reporte += `\n`;
-            }
-        }
-        
-        const blob = new Blob([reporte], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Reporte_${selectedAthlete.nombreAtleta.replace(/ /g, '_')}.txt`;
-        a.click();
-    }
-
-    let totalMillas = 0; let sumHr = 0, countHr = 0; let datosSemanales = [0,0,0,0,0,0,0,0];
-    routines.forEach(r => {
-        const rec = records[r.id];
-        if(rec?.completado) {
-            if(rec.garmin_dist) { totalMillas += rec.garmin_dist; datosSemanales[r.semana-1] += rec.garmin_dist; }
-            if(rec.garmin_hr) { sumHr += rec.garmin_hr; countHr++; }
-        }
-    });
 
     return (
         <div className="min-h-screen bg-black text-gray-100 font-sans pb-24">
             <header className="p-6 bg-black/90 backdrop-blur-md border-b border-gray-800 flex justify-between items-center sticky top-0 z-40">
                 <div>
-                    <h1 className="text-xl font-black italic tracking-tighter text-orange-500">PANEL DE CONTROL</h1>
-                    <div className="text-[9px] uppercase tracking-widest font-bold text-gray-500 mt-1">Coach: <span className="text-white">{coachName}</span></div>
+                    <h1 className="text-xl font-black italic tracking-tighter text-orange-500">JS RUNNING <span className="text-white">COACH</span></h1>
+                    <div className="text-[9px] uppercase tracking-widest font-bold text-gray-500 mt-1">Sesión: {coachName}</div>
                 </div>
-                <button onClick={() => supabase.auth.signOut()} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500 hover:text-red-400">Salir</button>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowAddModal(true)} className="bg-blue-600 p-2 rounded-lg text-[10px] font-black"><i className="fas fa-user-plus"></i></button>
+                    <button onClick={() => setShowImportModal(true)} className="bg-green-600 p-2 rounded-lg text-[10px] font-black"><i className="fas fa-file-import"></i></button>
+                    <button onClick={() => supabase.auth.signOut()} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-red-500"><i className="fas fa-sign-out-alt"></i></button>
+                </div>
             </header>
 
             <main className="p-4 max-w-md mx-auto space-y-4 mt-4">
-                <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest border-b border-gray-800 pb-2">Atletas Activos</h2>
-                {loading ? <div className="text-orange-500 text-center py-4">Cargando...</div> : 
-                    athletes.map((plan) => (
-                        <div key={plan.id} onClick={() => abrirDetalle(plan)} className="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500/50 transition cursor-pointer">
-                            <h3 className="font-black text-lg text-white">{plan.nombreAtleta}</h3>
-                            <p className="text-xs text-orange-500 uppercase font-bold">{plan.titulo}</p>
+                <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-2">Gestión de Atletas</h2>
+                {loading ? <div className="text-orange-500 text-center py-4">Sincronizando...</div> : 
+                    athletes.map((atleta) => (
+                        <div key={atleta.id} onClick={() => abrirDetalle(atleta)} className="bg-gray-900 border border-gray-800 rounded-2xl p-5 hover:border-orange-500 transition cursor-pointer flex justify-between items-center">
+                            <div>
+                                <h3 className="font-black text-white">{atleta.nombre}</h3>
+                                <p className="text-[10px] text-gray-500 uppercase font-bold">{atleta.deporte} • {atleta.disciplina}</p>
+                                {atleta.planActivo ? <span className="text-[9px] text-green-500 font-black uppercase">Plan: {atleta.planActivo.titulo}</span> : <span className="text-[9px] text-red-500 font-black uppercase">Sin Plan Activo</span>}
+                            </div>
+                            <i className="fas fa-chevron-right text-gray-700"></i>
                         </div>
                     ))
                 }
             </main>
 
+            {/* MODAL: REGISTRAR ATLETA */}
+            {showAddModal && (
+                <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+                    <form onSubmit={registrarAtleta} className="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
+                        <h2 className="text-lg font-black text-white uppercase italic">Nuevo Atleta</h2>
+                        <input required placeholder="Nombre Completo" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({...newAthlete, nombre: e.target.value})}/>
+                        <input required type="email" placeholder="Correo Electrónico" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({...newAthlete, email: e.target.value})}/>
+                        <div className="grid grid-cols-2 gap-3">
+                            <select className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({...newAthlete, sexo: e.target.value})}>
+                                <option>Sexo</option><option>M</option><option>F</option>
+                            </select>
+                            <input placeholder="Deporte" className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({...newAthlete, deporte: e.target.value})}/>
+                        </div>
+                        <input placeholder="Disciplina (ej. Fondo / Trail)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({...newAthlete, disciplina: e.target.value})}/>
+                        <div className="flex gap-3 pt-2">
+                            <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 text-gray-500 font-bold text-xs uppercase">Cerrar</button>
+                            <button type="submit" className="flex-1 bg-orange-600 p-3 rounded-xl font-black text-xs text-white">CREAR CUENTA</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* MODAL: IMPORTAR PLAN */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm space-y-4">
+                        <h2 className="text-lg font-black text-white uppercase italic">Importar Plan</h2>
+                        <select className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white" onChange={e => setImportData({...importData, atletaId: e.target.value})}>
+                            <option value="">Selecciona Atleta...</option>
+                            {athletes.map(a => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                        </select>
+                        <select className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white" onChange={e => setImportData({...importData, meta: e.target.value})}>
+                            <option value="5k">Meta 5K</option>
+                            <option value="10k">Meta 10K</option>
+                            <option value="21k">Meta 21K</option>
+                            <option value="42k">Meta 42K</option>
+                        </select>
+                        <button onClick={importarPlan} className="w-full bg-green-600 p-4 rounded-xl font-black text-white uppercase">IMPORTAR AHORA</button>
+                        <button onClick={() => setShowImportModal(false)} className="w-full text-gray-500 font-bold text-xs uppercase">Cancelar</button>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: AUDITORÍA (Lo que ya tenías) */}
             {selectedAthlete && (
-                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-                    <div className="bg-gray-900 border-t sm:border border-gray-700 rounded-t-3xl sm:rounded-3xl w-full max-w-md mx-auto h-[85vh] sm:h-auto max-h-[85vh] flex flex-col">
-                        <div className="p-6 border-b border-gray-800 flex justify-between items-start sticky top-0 bg-gray-900 rounded-t-3xl z-10">
-                            <div>
-                                <h2 className="text-2xl font-black text-orange-500 uppercase italic leading-none">{selectedAthlete.nombreAtleta}</h2>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{selectedAthlete.titulo}</p>
-                            </div>
-                            <button onClick={() => setSelectedAthlete(null)} className="text-gray-400 hover:text-white"><i className="fas fa-times text-xl"></i></button>
+                <div className="fixed inset-0 z-50 bg-black/95 flex flex-col p-0">
+                    <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900">
+                        <div>
+                            <h2 className="text-2xl font-black text-orange-500 italic uppercase">{selectedAthlete.nombre}</h2>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">{selectedAthlete.planActivo.titulo}</p>
                         </div>
-
-                        <div className="overflow-y-auto flex-1 p-6 space-y-6">
-                            
-                            <button onClick={exportarReporte} className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-black text-white text-sm transition flex items-center justify-center gap-2">
-                                <i className="fas fa-file-export"></i> EXPORTAR HISTORIAL (TXT)
-                            </button>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-black p-4 rounded-2xl border border-gray-800 text-center"><p className="text-[10px] uppercase text-gray-500">Millas Tot.</p><h3 className="text-2xl font-black text-orange-500">{totalMillas.toFixed(1)}</h3></div>
-                                <div className="bg-black p-4 rounded-2xl border border-gray-800 text-center"><p className="text-[10px] uppercase text-gray-500">BPM Prom.</p><h3 className="text-2xl font-black text-red-500">{countHr > 0 ? Math.round(sumHr / countHr) : '--'}</h3></div>
-                            </div>
-
-                            <div className="space-y-4">
-                                {routines.map((r, i) => {
-                                    const showHeader = i === 0 || routines[i-1].semana !== r.semana;
-                                    const rec = records[r.id];
-                                    const isCompleted = rec?.completado;
-                                    return (
-                                        <div key={r.id}>
-                                            {showHeader && <div className="mt-6 mb-2 flex items-center gap-2"><div className="h-px bg-gray-800 flex-1"></div><span className="text-[10px] font-black uppercase text-gray-500">SEMANA {r.semana}</span><div className="h-px bg-gray-800 flex-1"></div></div>}
-                                            
-                                            <div className={`p-4 border rounded-2xl ${isCompleted ? 'border-green-500/50 bg-[#064e3b]/30' : 'border-gray-800 bg-black'}`}>
-                                                <div className="flex justify-between">
-                                                    <div>
-                                                        <span className="text-[9px] text-orange-500 font-bold uppercase">{r.dia_semana}</span>
-                                                        <h4 className="text-sm font-black text-gray-100">{r.titulo}</h4>
-                                                        <p className="text-[10px] text-gray-500">{r.detalle}</p>
-                                                    </div>
-                                                    {isCompleted ? <i className="fas fa-check-circle text-green-500 text-xl"></i> : <i className="far fa-circle text-gray-700 text-xl"></i>}
-                                                </div>
-
-                                                {isCompleted && (rec.garmin_dist || rec.notas) && (
-                                                    <div className="mt-3 pt-3 border-t border-gray-700/50 text-[10px] text-gray-300">
-                                                        {rec.garmin_dist && <p><i className="fas fa-route text-orange-500"></i> {rec.garmin_dist}mi | ⚡ {rec.garmin_pace || '--'}</p>}
-                                                        {rec.notas && <p className="italic text-gray-400 bg-black p-2 rounded mt-1">"{rec.notas}"</p>}
-                                                    </div>
-                                                )}
-
-                                                <div className="mt-3 pt-3 border-t border-gray-800">
-                                                    {editingNoteId === r.id ? (
-                                                        <div className="space-y-2">
-                                                            <textarea value={tempNoteText} onChange={e => setTempNoteText(e.target.value)} placeholder="Aclara el ejercicio o añade notas..." className="w-full bg-black border border-orange-500/50 rounded p-2 text-xs text-white"/>
-                                                            <div className="flex gap-2">
-                                                                <button onClick={() => guardarNotaCoach(r.id)} disabled={isSavingNote} className="bg-orange-600 hover:bg-orange-700 text-white text-[10px] px-3 py-1 rounded font-bold transition">
-                                                                    {isSavingNote ? 'Guardando...' : 'Guardar'}
-                                                                </button>
-                                                                <button onClick={() => setEditingNoteId(null)} disabled={isSavingNote} className="bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] px-3 py-1 rounded font-bold transition">Cancelar</button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex justify-between items-center">
-                                                            <p className="text-[10px] text-orange-200 bg-orange-500/10 p-2 rounded-lg flex-1 mr-2">{r.notas_coach ? `💡 ${r.notas_coach}` : "Sin nota de coach"}</p>
-                                                            <button onClick={() => { setEditingNoteId(r.id); setTempNoteText(r.notas_coach || ''); }} className="text-gray-500 hover:text-orange-500 transition"><i className="fas fa-edit"></i></button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                        <button onClick={() => setSelectedAthlete(null)} className="text-gray-400"><i className="fas fa-times text-xl"></i></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {routines.map(r => (
+                            <div key={r.id} className="bg-gray-900 border border-gray-800 rounded-2xl p-4">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <span className="text-[9px] text-orange-500 font-black uppercase">S{r.semana} • {r.dia_semana}</span>
+                                        <h4 className="font-black text-white">{r.titulo}</h4>
+                                        <p className="text-[10px] text-gray-500">{r.detalle}</p>
+                                    </div>
+                                    {records[r.id]?.completado ? <i className="fas fa-check-circle text-green-500"></i> : <i className="far fa-circle text-gray-700"></i>}
+                                </div>
+                                <div className="mt-3 border-t border-gray-800 pt-3">
+                                    {editingNoteId === r.id ? (
+                                        <div className="flex gap-2">
+                                            <input value={tempNoteText} onChange={e => setTempNoteText(e.target.value)} className="flex-1 bg-black border border-gray-700 rounded p-2 text-[10px] text-white" />
+                                            <button onClick={() => guardarNotaCoach(r.id)} className="bg-orange-600 px-3 rounded text-[10px] font-bold">OK</button>
                                         </div>
-                                    );
-                                })}
+                                    ) : (
+                                        <div className="flex justify-between text-[10px] text-orange-200 bg-orange-500/5 p-2 rounded">
+                                            <span>{r.notas_coach || "Sin nota del coach..."}</span>
+                                            <button onClick={() => { setEditingNoteId(r.id); setTempNoteText(r.notas_coach || ''); }}><i className="fas fa-edit"></i></button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        ))}
                     </div>
                 </div>
             )}
