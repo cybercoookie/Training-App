@@ -173,7 +173,7 @@ export default function AthleteHub({ userName }) {
                     <h1 className="text-xl font-black italic tracking-tighter">JS <span className="text-orange-500">RUNNING CLUB</span></h1>
                     <div className="flex flex-col text-[9px] uppercase tracking-widest font-bold text-gray-500 mt-1">
                         <span>Atleta: <span className="text-white">{userName}</span></span>
-                        <span className="text-orange-500/70">Media Maratón · Meta 3:00 hrs · Sep 27</span>
+                        <span className="text-orange-500/70">Media Maratón · Meta 3:00 hrs · Ago 9</span>
                     </div>
                 </div>
                 <div className="flex gap-3">
