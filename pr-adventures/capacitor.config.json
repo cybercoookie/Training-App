@@ -1,0 +1,11 @@
+{
+  "appId": "com.betterit.pradventures",
+  "appName": "PR Adventures",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "always"
+  }
+}

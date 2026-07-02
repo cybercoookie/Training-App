@@ -1,0 +1,21 @@
+# Netlify configuration for PR Adventures.
+# The Netlify site's "base directory" must be set to pr-adventures/ since this
+# repo contains multiple apps.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA routing: send all paths to index.html so React Router handles them.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self), camera=(self)"
