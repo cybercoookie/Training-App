@@ -7,6 +7,78 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const DAY_ORDER = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7 };
 const PLAN_START_DATE = '2026-06-30';
+const RACE_DATE = '2026-08-09';
+
+const FRASES_MOTIVACIONALES = [
+    '"El milagro no es terminar la carrera. El milagro es tener el coraje de empezar." — John Bingham',
+    '"No importa qué tan lento vayas, sigues siendo más rápida que quien está en el sofá."',
+    '"Corre cuando puedas, camina si debes, gatea si es necesario; pero nunca te rindas." — Dean Karnazes',
+    '"El dolor es temporal. Rendirse dura para siempre." — Lance Armstrong',
+    '"Tu cuerpo puede aguantar casi todo. Es a tu mente a la que tienes que convencer."',
+    '"Cada milla que corres es una promesa que te cumples a ti misma."',
+    '"No entrenas para la carrera. Entrenas para convertirte en la persona que puede terminarla."',
+    '"Las piernas duelen unos días. Rendirse duele toda la vida."',
+    '"La disciplina es elegir entre lo que quieres ahora y lo que quieres más."',
+    '"13.1 millas no se corren el día de la carrera. Se corren todos los días antes."',
+];
+
+// Genera el mensaje del splash a partir del progreso real del plan
+function generarMensajeDiario(workouts) {
+    const today = new Date().toISOString().split('T')[0];
+    const completados = workouts.filter(w => w.is_completed);
+    const totalWorkouts = workouts.length;
+    const millasHechas = completados.reduce((sum, w) => sum + (parseFloat(w.distance_mi) || 0), 0);
+    const millasTotales = workouts.reduce((sum, w) => sum + (parseFloat(w.distance_mi) || 0), 0);
+    const millasRestantes = Math.max(0, millasTotales - millasHechas);
+    const pctCompletado = totalWorkouts > 0 ? Math.round((completados.length / totalWorkouts) * 100) : 0;
+
+    const msPorDia = 1000 * 60 * 60 * 24;
+    const diasParaCarrera = Math.max(0, Math.ceil((new Date(RACE_DATE) - new Date(today)) / msPorDia));
+
+    const workoutHoy = workouts.find(w => w.date === today && !w.is_completed);
+    const proximoWorkout = workouts.find(w => w.date >= today && !w.is_completed);
+
+    // Racha: workouts completados consecutivos más recientes (hacia atrás desde hoy)
+    const pasados = workouts.filter(w => w.date < today);
+    let racha = 0;
+    for (let i = pasados.length - 1; i >= 0; i--) {
+        if (pasados[i].is_completed) racha++;
+        else break;
+    }
+
+    let titulo, mensaje;
+    if (diasParaCarrera === 0) {
+        titulo = '🏅 ¡HOY ES EL DÍA!';
+        mensaje = 'Llegó el momento. Todo el trabajo está hecho — hoy solo sal y disfruta tus 13.1 millas. ¡Confía en tu entrenamiento!';
+    } else if (completados.length === 0) {
+        titulo = '🌅 ¡Todo comienza hoy!';
+        mensaje = `Tienes ${totalWorkouts} entrenamientos y ${millasTotales.toFixed(1)} millas por delante rumbo a tu media maratón. El primer paso es el más importante.`;
+    } else if (racha >= 3) {
+        titulo = `🔥 ¡Racha de ${racha} entrenamientos!`;
+        mensaje = `Estás imparable: ${completados.length} de ${totalWorkouts} completados (${pctCompletado}%) y ${millasHechas.toFixed(1)} millas en las piernas. Quedan ${millasRestantes.toFixed(1)} millas y ${diasParaCarrera} días para la carrera.`;
+    } else if (pctCompletado >= 75) {
+        titulo = '🏁 ¡La meta está cerca!';
+        mensaje = `Ya completaste el ${pctCompletado}% del plan con ${millasHechas.toFixed(1)} millas corridas. Solo faltan ${millasRestantes.toFixed(1)} millas y ${diasParaCarrera} días. ¡El trabajo duro ya casi está hecho!`;
+    } else if (pctCompletado >= 50) {
+        titulo = '💪 ¡Pasaste la mitad!';
+        mensaje = `${completados.length} entrenamientos completados y ${millasHechas.toFixed(1)} millas acumuladas. Quedan ${millasRestantes.toFixed(1)} millas en ${diasParaCarrera} días. Cada sesión te acerca más.`;
+    } else {
+        titulo = '🏃‍♀️ ¡Sigue construyendo!';
+        mensaje = `Llevas ${completados.length} de ${totalWorkouts} entrenamientos (${millasHechas.toFixed(1)} millas). Faltan ${diasParaCarrera} días para la carrera — la constancia de hoy es el resultado de mañana.`;
+    }
+
+    if (workoutHoy) {
+        mensaje += ` Hoy toca: ${workoutHoy.title}${workoutHoy.distance_mi > 0 ? ` (${workoutHoy.distance_mi} mi)` : ''}.`;
+    } else if (proximoWorkout) {
+        mensaje += ` Próximo entrenamiento: ${proximoWorkout.day_of_week} — ${proximoWorkout.title}.`;
+    }
+
+    // Frase del día: rota de forma determinista según la fecha
+    const semilla = today.split('-').reduce((a, b) => a + parseInt(b), 0);
+    const frase = FRASES_MOTIVACIONALES[semilla % FRASES_MOTIVACIONALES.length];
+
+    return { titulo, mensaje, frase, diasParaCarrera, pctCompletado, millasHechas, millasRestantes };
+}
 
 function getWeekForToday(workoutsByWeek) {
     const today = new Date().toISOString().split('T')[0];
@@ -34,6 +106,9 @@ export default function AthleteHub({ userName }) {
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [feedbackText, setFeedbackText] = useState('');
     const [feedbackStatus, setFeedbackStatus] = useState('idle');
+
+    const [splashData, setSplashData] = useState(null);
+    const [showSplash, setShowSplash] = useState(false);
 
     const [seconds, setSeconds] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
@@ -72,6 +147,15 @@ export default function AthleteHub({ userName }) {
                 setWorkoutsByWeek(byWeek);
                 setCurrentWeek(getWeekForToday(byWeek));
                 setHasWorkouts(true);
+
+                // Splash motivacional: una vez al día por usuario
+                const today = new Date().toISOString().split('T')[0];
+                const splashKey = `js_splash_${user.id}`;
+                if (localStorage.getItem(splashKey) !== today) {
+                    setSplashData(generarMensajeDiario(workouts));
+                    setShowSplash(true);
+                    localStorage.setItem(splashKey, today);
+                }
             } else {
                 setHasWorkouts(false);
             }
@@ -316,6 +400,41 @@ export default function AthleteHub({ userName }) {
             <button onClick={() => setShowFeedbackModal(true)} className="fixed bottom-6 right-6 bg-orange-600 hover:bg-orange-500 text-white w-14 h-14 rounded-full shadow-2xl shadow-orange-600/50 flex items-center justify-center text-2xl transition-transform active:scale-90 z-40">
                 <i className="fas fa-comment-dots"></i>
             </button>
+
+            {showSplash && splashData && (
+                <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-gradient-to-b from-gray-900 to-black border border-orange-500/30 rounded-3xl p-8 w-full max-w-sm relative shadow-2xl shadow-orange-500/10 text-center">
+                        <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">JS Running Club</div>
+                        <h2 className="text-2xl font-black text-white mb-3">{splashData.titulo}</h2>
+                        <p className="text-sm text-gray-300 mb-5 leading-relaxed">{splashData.mensaje}</p>
+
+                        <div className="grid grid-cols-3 gap-2 mb-5">
+                            <div className="bg-black/60 border border-gray-800 rounded-xl p-3">
+                                <p className="text-xl font-black text-orange-500">{splashData.pctCompletado}%</p>
+                                <p className="text-[9px] uppercase font-bold text-gray-500">Plan</p>
+                            </div>
+                            <div className="bg-black/60 border border-gray-800 rounded-xl p-3">
+                                <p className="text-xl font-black text-blue-400">{splashData.millasHechas.toFixed(1)}</p>
+                                <p className="text-[9px] uppercase font-bold text-gray-500">Mi corridas</p>
+                            </div>
+                            <div className="bg-black/60 border border-gray-800 rounded-xl p-3">
+                                <p className="text-xl font-black text-green-400">{splashData.diasParaCarrera}</p>
+                                <p className="text-[9px] uppercase font-bold text-gray-500">Días p/ carrera</p>
+                            </div>
+                        </div>
+
+                        <div className="mb-6 h-2 bg-gray-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-orange-600 to-orange-400 rounded-full transition-all" style={{ width: `${splashData.pctCompletado}%` }}></div>
+                        </div>
+
+                        <p className="text-xs text-orange-300/80 italic mb-6 leading-relaxed">{splashData.frase}</p>
+
+                        <button onClick={() => setShowSplash(false)} className="w-full bg-orange-600 hover:bg-orange-500 p-4 rounded-xl font-black text-white text-sm uppercase tracking-wider active:scale-95 transition shadow-lg shadow-orange-600/30">
+                            ¡A entrenar! <i className="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {showFeedbackModal && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
