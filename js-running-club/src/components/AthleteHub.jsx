@@ -101,6 +101,10 @@ export default function AthleteHub({ userName }) {
 
     const [selectedWorkoutId, setSelectedWorkoutId] = useState('');
     const [formNotes, setFormNotes] = useState('');
+    const [formDist, setFormDist] = useState('');
+    const [formPace, setFormPace] = useState('');
+    const [formHr, setFormHr] = useState('');
+    const [formUrl, setFormUrl] = useState('');
     const [saving, setSaving] = useState(false);
 
     const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -120,6 +124,10 @@ export default function AthleteHub({ userName }) {
         const w = workoutsByWeek[currentWeek];
         const selected = w?.find(r => r.id.toString() === selectedWorkoutId.toString());
         setFormNotes(selected?.athlete_notes || '');
+        setFormDist(selected?.actual_distance_mi || '');
+        setFormPace(selected?.actual_pace || '');
+        setFormHr(selected?.avg_hr || '');
+        setFormUrl(selected?.garmin_url || '');
     }, [selectedWorkoutId, currentWeek, workoutsByWeek]);
 
     async function cargarPlan() {
@@ -184,17 +192,24 @@ export default function AthleteHub({ userName }) {
     async function guardarDetalles() {
         if (!selectedWorkoutId) { alert("Selecciona un entrenamiento."); return; }
         setSaving(true);
+        const payload = {
+            athlete_notes: formNotes || null,
+            actual_distance_mi: formDist ? parseFloat(formDist) : null,
+            actual_pace: formPace || null,
+            avg_hr: formHr ? parseInt(formHr) : null,
+            garmin_url: formUrl || null,
+        };
         try {
-            await supabase.from('athlete_program').update({ athlete_notes: formNotes || null }).eq('id', selectedWorkoutId);
+            await supabase.from('athlete_program').update(payload).eq('id', selectedWorkoutId);
             setWorkoutsByWeek(prev => {
                 const updated = { ...prev };
                 for (const week of Object.values(updated)) {
                     const w = week.find(r => r.id.toString() === selectedWorkoutId.toString());
-                    if (w) { w.athlete_notes = formNotes || null; break; }
+                    if (w) { Object.assign(w, payload); break; }
                 }
                 return { ...updated };
             });
-            alert("¡Notas guardadas exitosamente!");
+            alert("¡Detalles guardados exitosamente!");
         } catch (e) { alert("Error al guardar."); }
         finally { setSaving(false); }
     }
@@ -205,6 +220,8 @@ export default function AthleteHub({ userName }) {
         if (!workout) return;
         let report = `🏃‍♀️ *REPORTE DE ENTRENAMIENTO*\n\n*Atleta:* ${userName}\n*Plan:* Media Maratón — Meta 3:00 hrs\n*Semana:* ${currentWeek} | *${workout.day_of_week}* ${workout.date}\n\n✅ *${workout.title}*\n`;
         if (workout.distance_mi > 0) report += `📏 Distancia planificada: ${workout.distance_mi} mi\n`;
+        if (formDist || formPace || formHr) { report += `└ `; if (formDist) report += `⌚ ${formDist}mi `; if (formPace) report += `⚡ ${formPace}/mi `; if (formHr) report += `❤️ ${formHr}bpm`; report += `\n`; }
+        if (formUrl) report += `\n🔗 *Actividad:* ${formUrl}\n`;
         if (formNotes) report += `\n*NOTAS:*\n"${formNotes}"\n`;
         window.open(`https://wa.me/?text=${encodeURIComponent(report)}`);
     }
@@ -363,6 +380,12 @@ export default function AthleteHub({ userName }) {
                                     </div>
                                 )}
 
+                                <div className="grid grid-cols-2 gap-4">
+                                    <input type="number" step="0.01" value={formDist} onChange={e => setFormDist(e.target.value)} placeholder="Millas (Ej: 2.5)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
+                                    <input type="text" value={formPace} onChange={e => setFormPace(e.target.value)} placeholder="Paso (Ej: 13:17)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
+                                    <input type="number" value={formHr} onChange={e => setFormHr(e.target.value)} placeholder="BPM (Ej: 145)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
+                                    <input type="url" value={formUrl} onChange={e => setFormUrl(e.target.value)} placeholder="Link Garmin" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white focus:border-orange-500"/>
+                                </div>
                                 <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="¿Cómo te fue? Anota tus sensaciones, dificultades o logros para el Coach..." className="w-full bg-black border border-gray-800 rounded-2xl p-4 text-sm text-white h-24 focus:border-orange-500 resize-none"></textarea>
 
                                 <div className="flex flex-col gap-2">
