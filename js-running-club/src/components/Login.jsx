@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../utils/supabase';
+import SignUp from './SignUp';
 
 export default function Login() {
     // React "recuerda" lo que el usuario escribe usando 'useState'
@@ -7,6 +8,9 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showSignUp, setShowSignUp] = useState(false);
+
+    if (showSignUp) return <SignUp onBack={() => setShowSignUp(false)} />;
 
     const handleLogin = async (e) => {
         e.preventDefault(); // Evita que la página recargue
@@ -66,6 +70,10 @@ export default function Login() {
                         {loading ? 'Cargando...' : 'ENTRAR'}
                     </button>
                 </form>
+
+                <button onClick={() => setShowSignUp(true)} className="w-full text-center text-[11px] text-gray-500 font-bold uppercase mt-6 hover:text-orange-400 transition">
+                    ¿Nuevo en el club? <span className="text-orange-500">Regístrate aquí</span>
+                </button>
             </div>
         </div>
     );

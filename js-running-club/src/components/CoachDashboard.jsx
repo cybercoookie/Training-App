@@ -33,6 +33,88 @@ const ZONE_INFO = {
     5: { label: 'Z5 Máxima', color: 'rgba(248, 113, 113, 0.7)' },
 };
 
+const METAS = {
+    '5k':  { dist: 3.1,  longMax: 4,  nombre: '5K' },
+    '10k': { dist: 6.2,  longMax: 7,  nombre: '10K' },
+    '21k': { dist: 13.1, longMax: 11, nombre: 'Media Maratón' },
+    '42k': { dist: 26.2, longMax: 20, nombre: 'Maratón' },
+};
+
+function fmtPace(secsPerMi) {
+    const m = Math.floor(secsPerMi / 60), s = Math.round(secsPerMi % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+// AI Coach: genera un plan periodizado (base → build → peak → taper)
+// a partir de los datos de preparación previa del atleta.
+function generarPlanAI(datos) {
+    const meta = METAS[datos.meta] || METAS['21k'];
+    const nivel = datos.nivel || 'principiante';
+    const diasSemana = parseInt(datos.diasSemana) || 4;
+    const currentLong = parseFloat(datos.corridaMasLarga) || 2;
+
+    // Ritmo meta a partir del tiempo objetivo (formato "3:00" hrs:min)
+    let paceMeta = null;
+    if (datos.tiempoMeta) {
+        const [h, m] = datos.tiempoMeta.split(':').map(Number);
+        if (!isNaN(h)) paceMeta = fmtPace(((h * 60 + (m || 0)) * 60) / meta.dist);
+    }
+
+    // Semanas disponibles hasta la carrera (min 4, max 16)
+    const hoy = new Date();
+    const inicio = new Date(hoy);
+    inicio.setDate(inicio.getDate() + ((2 - inicio.getDay() + 7) % 7 || 7)); // próximo martes
+    let totalSemanas = 8;
+    if (datos.fechaCarrera) {
+        const carrera = new Date(datos.fechaCarrera + 'T00:00:00');
+        totalSemanas = Math.max(4, Math.min(16, Math.floor((carrera - inicio) / (7 * 24 * 3600 * 1000)) + 1));
+    }
+
+    const taperSemanas = meta.dist >= 13 ? 2 : 1;
+    const buildSemanas = totalSemanas - taperSemanas;
+
+    // Progresión del largo: de la corrida más larga actual hasta el máximo del plan
+    const longInicial = Math.max(2, Math.min(currentLong, meta.longMax));
+    const factorNivel = nivel === 'avanzado' ? 1.15 : nivel === 'intermedio' ? 1.0 : 0.85;
+    const easyBase = Math.max(2, Math.round(longInicial * 0.6 * factorNivel * 2) / 2);
+
+    const workouts = [];
+    const addDias = (date, n) => { const d = new Date(date); d.setDate(d.getDate() + n); return d.toISOString().split('T')[0]; };
+
+    for (let s = 1; s <= totalSemanas; s++) {
+        const lunes = addDias(inicio, (s - 1) * 7 - 1);
+        const esTaper = s > buildSemanas;
+        const esCutback = !esTaper && s % 4 === 0;
+        const esCarrera = s === totalSemanas && datos.fechaCarrera;
+        const progreso = buildSemanas > 1 ? (s - 1) / (buildSemanas - 1) : 1;
+
+        let longRun = longInicial + (meta.longMax - longInicial) * Math.min(1, progreso);
+        if (esCutback) longRun *= 0.75;
+        if (esTaper) longRun = meta.longMax * (esCarrera ? 0 : 0.5);
+        longRun = Math.round(longRun * 2) / 2;
+
+        let easy = easyBase + progreso * 1.5;
+        if (esCutback || esTaper) easy *= 0.8;
+        easy = Math.round(easy * 2) / 2;
+
+        // Martes: easy
+        workouts.push({ week_number: s, day_of_week: 'Tuesday', date: addDias(lunes, 1), title: 'Easy Run', description: `Trote suave conversacional. Esfuerzo 5/10.${esTaper ? ' Semana de taper: prioriza descanso e hidratación.' : ''}`, distance_mi: esCarrera ? Math.min(easy, 2) : easy, workout_type: 'Running' });
+
+        // Jueves: easy al inicio, tempo desde el segundo tercio
+        const conTempo = !esTaper && !esCutback && s > Math.ceil(buildSemanas / 3);
+        workouts.push({ week_number: s, day_of_week: 'Thursday', date: addDias(lunes, 3), title: esCarrera ? 'Easy Run' : conTempo ? 'Tempo Run' : 'Easy Run', description: esCarrera ? 'Trote corto de activación. Confía en tu entrenamiento.' : conTempo ? `Calentamiento 1 mi + tempo a ritmo ${paceMeta ? `meta (${paceMeta}/mi)` : 'controlado'} + enfriamiento.` : 'Trote aeróbico base. Enfócate en postura y cadencia.', distance_mi: esCarrera ? 1.5 : easy, workout_type: 'Running' });
+
+        // Sábado: fuerza (si entrena 4+ días), excepto taper
+        if (diasSemana >= 4) {
+            workouts.push({ week_number: s, day_of_week: 'Saturday', date: addDias(lunes, 5), title: esTaper ? 'Mobility Only' : 'Strength & Mobility', description: esTaper ? 'Solo movilidad y estiramientos suaves. Nada nuevo antes de la carrera.' : 'Fuerza para corredores: sentadillas, RDL, lunges, core y estabilidad de cadera.', distance_mi: 0, workout_type: 'Strength' });
+        }
+
+        // Domingo: largo (o carrera)
+        workouts.push({ week_number: s, day_of_week: 'Sunday', date: addDias(lunes, 6), title: esCarrera ? `🏅 RACE DAY — ${meta.nombre}` : esCutback ? 'Recovery Long Run' : 'Long Run', description: esCarrera ? `DÍA DE CARRERA. Meta: ${datos.tiempoMeta || 'terminar'}${paceMeta ? ` (~${paceMeta}/mi)` : ''}. Empieza conservador, hidrátate en cada puesto y disfruta.` : esCutback ? 'Semana de descarga: reduce volumen para asimilar la carga.' : `Largo progresivo. Ritmo muy suave, hidratación cada 20 min.${longRun >= meta.longMax * 0.8 ? ' Practica tu nutrición de carrera.' : ''}`, distance_mi: esCarrera ? meta.dist : longRun, workout_type: 'Running' });
+    }
+    return workouts;
+}
+
 // Genera métricas y análisis estilo Strava/Garmin a partir del programa
 function analizarPrograma(workouts) {
     const running = workouts.filter(w => w.workout_type === 'Running');
@@ -98,7 +180,13 @@ export default function CoachDashboard({ coachName }) {
     const [showNotifs, setShowNotifs] = useState(false);
 
     const [showAddModal, setShowAddModal] = useState(false);
-    const [newAthlete, setNewAthlete] = useState({ nombre: '', email: '', sexo: '', disciplina: '', deporte: '' });
+    const [wizardStep, setWizardStep] = useState(1);
+    const [creating, setCreating] = useState(false);
+    const [newAthlete, setNewAthlete] = useState({
+        nombre: '', email: '', sexo: '', disciplina: '', deporte: 'Running',
+        nivel: 'principiante', corridaMasLarga: '', diasSemana: '4', historial: '',
+        crearPlanAI: true, meta: '21k', tiempoMeta: '', fechaCarrera: '',
+    });
 
     // Detalle de atleta
     const [selectedAthlete, setSelectedAthlete] = useState(null);
@@ -146,6 +234,7 @@ export default function CoachDashboard({ coachName }) {
 
     async function registrarAtleta(e) {
         e.preventDefault();
+        setCreating(true);
         try {
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: newAthlete.email,
@@ -154,19 +243,60 @@ export default function CoachDashboard({ coachName }) {
             });
             if (authError) throw authError;
 
+            const datosEntrenamiento = {
+                nivel: newAthlete.nivel,
+                corrida_mas_larga_mi: newAthlete.corridaMasLarga || null,
+                dias_por_semana: newAthlete.diasSemana,
+                historial: newAthlete.historial || null,
+                meta: newAthlete.meta,
+                tiempo_meta: newAthlete.tiempoMeta || null,
+                fecha_carrera: newAthlete.fechaCarrera || null,
+            };
+
             await supabase.from('perfiles').update({
                 nombre: newAthlete.nombre, sexo: newAthlete.sexo, disciplina: newAthlete.disciplina,
-                deporte: newAthlete.deporte, email: newAthlete.email, rol: 'atleta'
+                deporte: newAthlete.deporte, email: newAthlete.email, rol: 'atleta',
+                datos_entrenamiento: datosEntrenamiento,
             }).eq('id', authData.user.id);
 
-            alert("¡Atleta creado! Contraseña temporal: ChangeMe2026!");
+            let msg = "¡Atleta creado! Contraseña temporal: ChangeMe2026!";
+            if (newAthlete.crearPlanAI) {
+                const plan = generarPlanAI(newAthlete);
+                const rows = plan.map(w => ({ ...w, athlete_id: authData.user.id, is_completed: false }));
+                const { error: planError } = await supabase.from('athlete_program').insert(rows);
+                if (planError) throw planError;
+                msg += ` Plan AI generado: ${plan.length} entrenamientos en ${plan[plan.length - 1].week_number} semanas.`;
+            }
+
+            alert(msg);
             setShowAddModal(false);
+            setWizardStep(1);
             cargarAtletas();
         } catch (error) { alert("Error: " + error.message); }
+        finally { setCreating(false); }
+    }
+
+    // Genera plan para un atleta auto-registrado usando sus datos de registro
+    async function generarPlanParaAtleta(atleta, e) {
+        e.stopPropagation();
+        const d = atleta.datos_entrenamiento || {};
+        const datos = {
+            nivel: d.nivel, corridaMasLarga: d.corrida_mas_larga_mi, diasSemana: d.dias_por_semana,
+            meta: d.meta || '21k', tiempoMeta: d.tiempo_meta, fechaCarrera: d.fecha_carrera,
+        };
+        if (!confirm(`Generar plan AI para ${atleta.nombre}?\nMeta: ${(datos.meta || '21k').toUpperCase()}${datos.tiempoMeta ? ` en ${datos.tiempoMeta}` : ''}${datos.fechaCarrera ? ` · Carrera: ${datos.fechaCarrera}` : ''}`)) return;
+        try {
+            const plan = generarPlanAI(datos);
+            const rows = plan.map(w => ({ ...w, athlete_id: atleta.id, is_completed: false }));
+            const { error } = await supabase.from('athlete_program').insert(rows);
+            if (error) throw error;
+            alert(`Plan generado: ${plan.length} entrenamientos en ${plan[plan.length - 1].week_number} semanas.`);
+            cargarAtletas();
+        } catch (err) { alert("Error: " + err.message); }
     }
 
     async function abrirDetalle(atleta) {
-        if (!atleta.tienePlan) { alert("Este atleta no tiene entrenamientos asignados."); return; }
+        if (!atleta.tienePlan) { alert("Este atleta no tiene entrenamientos asignados. Usa el botón 'Generar Plan AI' de su tarjeta."); return; }
         setSelectedAthlete(atleta);
         setDetailTab('resumen');
         const { data: wks } = await supabase.from('athlete_program')
@@ -239,7 +369,10 @@ export default function CoachDashboard({ coachName }) {
                                     <p className="text-[10px] text-gray-500 uppercase font-bold">{atleta.deporte || 'Running'} {atleta.disciplina ? `• ${atleta.disciplina}` : ''}</p>
                                     {atleta.tienePlan
                                         ? <span className="text-[9px] text-green-500 font-black uppercase">{atleta.completados}/{atleta.totalWorkouts} entrenamientos completados</span>
-                                        : <span className="text-[9px] text-red-500 font-black uppercase">Sin Plan Activo</span>}
+                                        : <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[9px] text-red-500 font-black uppercase">Sin Plan Activo</span>
+                                            <button onClick={(e) => generarPlanParaAtleta(atleta, e)} className="text-[9px] bg-orange-600 hover:bg-orange-500 text-white font-black uppercase px-2 py-1 rounded-lg"><i className="fas fa-robot mr-1"></i>Generar Plan AI</button>
+                                          </div>}
                                 </div>
                                 <i className="fas fa-chevron-right text-gray-700"></i>
                             </div>
@@ -253,24 +386,86 @@ export default function CoachDashboard({ coachName }) {
                 }
             </main>
 
-            {/* MODAL: REGISTRAR ATLETA */}
+            {/* MODAL: REGISTRAR ATLETA (WIZARD 2 PASOS) */}
             {showAddModal && (
                 <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
-                    <form onSubmit={registrarAtleta} className="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl">
-                        <h2 className="text-lg font-black text-white uppercase italic">Nuevo Atleta</h2>
-                        <input required placeholder="Nombre Completo" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, nombre: e.target.value })} />
-                        <input required type="email" placeholder="Correo Electrónico" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, email: e.target.value })} />
-                        <div className="grid grid-cols-2 gap-3">
-                            <select className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, sexo: e.target.value })}>
-                                <option>Sexo</option><option>M</option><option>F</option>
-                            </select>
-                            <input placeholder="Deporte" className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, deporte: e.target.value })} />
+                    <form onSubmit={registrarAtleta} className="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-lg font-black text-white uppercase italic">Nuevo Atleta</h2>
+                            <span className="text-[10px] font-black text-orange-500 uppercase">Paso {wizardStep}/2</span>
                         </div>
-                        <input placeholder="Disciplina (ej. Fondo / Trail)" className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, disciplina: e.target.value })} />
-                        <div className="flex gap-3 pt-2">
-                            <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 text-gray-500 font-bold text-xs uppercase">Cerrar</button>
-                            <button type="submit" className="flex-1 bg-orange-600 p-3 rounded-xl font-black text-xs text-white">CREAR CUENTA</button>
+                        <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-orange-500 transition-all" style={{ width: `${wizardStep * 50}%` }}></div>
                         </div>
+
+                        {wizardStep === 1 && (
+                            <>
+                                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Datos Personales</p>
+                                <input required placeholder="Nombre Completo" value={newAthlete.nombre} className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, nombre: e.target.value })} />
+                                <input required type="email" placeholder="Correo Electrónico" value={newAthlete.email} className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, email: e.target.value })} />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <select value={newAthlete.sexo} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, sexo: e.target.value })}>
+                                        <option value="">Sexo</option><option>M</option><option>F</option>
+                                    </select>
+                                    <input placeholder="Disciplina" value={newAthlete.disciplina} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, disciplina: e.target.value })} />
+                                </div>
+                                <div className="flex gap-3 pt-2">
+                                    <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 text-gray-500 font-bold text-xs uppercase">Cerrar</button>
+                                    <button type="button" onClick={() => { if (!newAthlete.nombre || !newAthlete.email) { alert('Completa nombre y correo.'); return; } setWizardStep(2); }} className="flex-1 bg-orange-600 p-3 rounded-xl font-black text-xs text-white">SIGUIENTE <i className="fas fa-arrow-right ml-1"></i></button>
+                                </div>
+                            </>
+                        )}
+
+                        {wizardStep === 2 && (
+                            <>
+                                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Preparación Previa</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <select value={newAthlete.nivel} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, nivel: e.target.value })}>
+                                        <option value="principiante">Principiante</option>
+                                        <option value="intermedio">Intermedio</option>
+                                        <option value="avanzado">Avanzado</option>
+                                    </select>
+                                    <select value={newAthlete.diasSemana} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, diasSemana: e.target.value })}>
+                                        <option value="3">3 días/sem</option>
+                                        <option value="4">4 días/sem</option>
+                                        <option value="5">5 días/sem</option>
+                                    </select>
+                                </div>
+                                <input type="number" step="0.5" placeholder="Corrida más larga reciente (mi)" value={newAthlete.corridaMasLarga} className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, corridaMasLarga: e.target.value })} />
+                                <textarea placeholder="Historial: entrenamientos previos, lesiones, carreras pasadas..." value={newAthlete.historial} className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm h-16 resize-none" onChange={e => setNewAthlete({ ...newAthlete, historial: e.target.value })}></textarea>
+
+                                <label className="flex items-center gap-3 bg-orange-500/10 border border-orange-500/30 rounded-xl p-3 cursor-pointer">
+                                    <input type="checkbox" checked={newAthlete.crearPlanAI} onChange={e => setNewAthlete({ ...newAthlete, crearPlanAI: e.target.checked })} className="w-5 h-5 accent-orange-500" />
+                                    <div>
+                                        <p className="text-xs font-black text-orange-400"><i className="fas fa-robot mr-1"></i> Generar plan con AI Coach</p>
+                                        <p className="text-[10px] text-gray-400">Plan periodizado (base → build → peak → taper) a partir de estos datos.</p>
+                                    </div>
+                                </label>
+
+                                {newAthlete.crearPlanAI && (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <select value={newAthlete.meta} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, meta: e.target.value })}>
+                                                <option value="5k">Meta 5K</option>
+                                                <option value="10k">Meta 10K</option>
+                                                <option value="21k">Meta 21K</option>
+                                                <option value="42k">Meta 42K</option>
+                                            </select>
+                                            <input placeholder="Tiempo meta (3:00)" value={newAthlete.tiempoMeta} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, tiempoMeta: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] text-gray-500 uppercase font-bold">Fecha de la carrera</label>
+                                            <input type="date" value={newAthlete.fechaCarrera} className="w-full bg-black border border-gray-800 rounded-xl p-3 text-sm text-white" onChange={e => setNewAthlete({ ...newAthlete, fechaCarrera: e.target.value })} />
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className="flex gap-3 pt-2">
+                                    <button type="button" onClick={() => setWizardStep(1)} className="flex-1 text-gray-500 font-bold text-xs uppercase"><i className="fas fa-arrow-left mr-1"></i> Atrás</button>
+                                    <button type="submit" disabled={creating} className="flex-1 bg-green-600 p-3 rounded-xl font-black text-xs text-white disabled:opacity-50">{creating ? 'CREANDO...' : newAthlete.crearPlanAI ? 'CREAR + PLAN AI' : 'CREAR CUENTA'}</button>
+                                </div>
+                            </>
+                        )}
                     </form>
                 </div>
             )}
