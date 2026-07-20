@@ -276,8 +276,27 @@ export default function CoachDashboard({ coachName }) {
         finally { setCreating(false); }
     }
 
+    // Genera plan para un atleta auto-registrado usando sus datos de registro
+    async function generarPlanParaAtleta(atleta, e) {
+        e.stopPropagation();
+        const d = atleta.datos_entrenamiento || {};
+        const datos = {
+            nivel: d.nivel, corridaMasLarga: d.corrida_mas_larga_mi, diasSemana: d.dias_por_semana,
+            meta: d.meta || '21k', tiempoMeta: d.tiempo_meta, fechaCarrera: d.fecha_carrera,
+        };
+        if (!confirm(`Generar plan AI para ${atleta.nombre}?\nMeta: ${(datos.meta || '21k').toUpperCase()}${datos.tiempoMeta ? ` en ${datos.tiempoMeta}` : ''}${datos.fechaCarrera ? ` · Carrera: ${datos.fechaCarrera}` : ''}`)) return;
+        try {
+            const plan = generarPlanAI(datos);
+            const rows = plan.map(w => ({ ...w, athlete_id: atleta.id, is_completed: false }));
+            const { error } = await supabase.from('athlete_program').insert(rows);
+            if (error) throw error;
+            alert(`Plan generado: ${plan.length} entrenamientos en ${plan[plan.length - 1].week_number} semanas.`);
+            cargarAtletas();
+        } catch (err) { alert("Error: " + err.message); }
+    }
+
     async function abrirDetalle(atleta) {
-        if (!atleta.tienePlan) { alert("Este atleta no tiene entrenamientos asignados."); return; }
+        if (!atleta.tienePlan) { alert("Este atleta no tiene entrenamientos asignados. Usa el botón 'Generar Plan AI' de su tarjeta."); return; }
         setSelectedAthlete(atleta);
         setDetailTab('resumen');
         const { data: wks } = await supabase.from('athlete_program')
@@ -350,7 +369,10 @@ export default function CoachDashboard({ coachName }) {
                                     <p className="text-[10px] text-gray-500 uppercase font-bold">{atleta.deporte || 'Running'} {atleta.disciplina ? `• ${atleta.disciplina}` : ''}</p>
                                     {atleta.tienePlan
                                         ? <span className="text-[9px] text-green-500 font-black uppercase">{atleta.completados}/{atleta.totalWorkouts} entrenamientos completados</span>
-                                        : <span className="text-[9px] text-red-500 font-black uppercase">Sin Plan Activo</span>}
+                                        : <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-[9px] text-red-500 font-black uppercase">Sin Plan Activo</span>
+                                            <button onClick={(e) => generarPlanParaAtleta(atleta, e)} className="text-[9px] bg-orange-600 hover:bg-orange-500 text-white font-black uppercase px-2 py-1 rounded-lg"><i className="fas fa-robot mr-1"></i>Generar Plan AI</button>
+                                          </div>}
                                 </div>
                                 <i className="fas fa-chevron-right text-gray-700"></i>
                             </div>
