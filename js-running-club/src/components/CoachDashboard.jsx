@@ -64,18 +64,24 @@ function generarPlanAI(datos) {
         if (totalMin && totalMin > 0) paceMeta = fmtPace((totalMin * 60) / meta.dist);
     }
 
-    // Semanas disponibles hasta la carrera (min 4, max 16)
+    // Arranca el próximo martes (o este martes si hoy es lunes/martes)
     const hoy = new Date();
     const inicio = new Date(hoy);
-    inicio.setDate(inicio.getDate() + ((2 - inicio.getDay() + 7) % 7 || 7)); // próximo martes
+    const diffMartes = (2 - inicio.getDay() + 7) % 7; // 0 si hoy es martes
+    inicio.setDate(inicio.getDate() + diffMartes);
+
+    // Longitud del plan: se ajusta a las semanas disponibles hasta la carrera.
+    // Sin fecha usamos 8 semanas por defecto; con fecha NO sobrepasamos la carrera.
     let totalSemanas = 8;
     if (datos.fechaCarrera) {
         const carrera = new Date(datos.fechaCarrera + 'T00:00:00');
-        totalSemanas = Math.max(4, Math.min(16, Math.floor((carrera - inicio) / (7 * 24 * 3600 * 1000)) + 1));
+        const semanas = Math.ceil((carrera - inicio) / (7 * 24 * 3600 * 1000));
+        totalSemanas = Math.max(1, Math.min(16, semanas));
     }
 
-    const taperSemanas = meta.dist >= 13 ? 2 : 1;
-    const buildSemanas = totalSemanas - taperSemanas;
+    // El taper solo aplica si hay semanas suficientes para permitirlo
+    const taperSemanas = totalSemanas >= 4 ? (meta.dist >= 13 ? 2 : 1) : 0;
+    const buildSemanas = Math.max(1, totalSemanas - taperSemanas);
 
     // Progresión del largo: de la corrida más larga actual hasta el máximo del plan
     const longInicial = Math.max(2, Math.min(currentLong, meta.longMax));
