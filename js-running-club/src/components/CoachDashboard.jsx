@@ -53,11 +53,15 @@ function generarPlanAI(datos) {
     const diasSemana = parseInt(datos.diasSemana) || 4;
     const currentLong = parseFloat(datos.corridaMasLarga) || 2;
 
-    // Ritmo meta a partir del tiempo objetivo (formato "3:00" hrs:min)
+    // Ritmo meta a partir del tiempo objetivo.
+    // Acepta "40" (minutos), "0:40" o "3:00" (horas:min). Un número solo = minutos.
     let paceMeta = null;
     if (datos.tiempoMeta) {
-        const [h, m] = datos.tiempoMeta.split(':').map(Number);
-        if (!isNaN(h)) paceMeta = fmtPace(((h * 60 + (m || 0)) * 60) / meta.dist);
+        const parts = datos.tiempoMeta.split(':').map(Number);
+        let totalMin = null;
+        if (parts.length === 1 && !isNaN(parts[0])) totalMin = parts[0];
+        else if (parts.length === 2 && !isNaN(parts[0])) totalMin = parts[0] * 60 + (parts[1] || 0);
+        if (totalMin && totalMin > 0) paceMeta = fmtPace((totalMin * 60) / meta.dist);
     }
 
     // Semanas disponibles hasta la carrera (min 4, max 16)
@@ -253,11 +257,13 @@ export default function CoachDashboard({ coachName }) {
                 fecha_carrera: newAthlete.fechaCarrera || null,
             };
 
-            await supabase.from('perfiles').update({
+            const { error: perfilError } = await supabase.from('perfiles').upsert({
+                id: authData.user.id,
                 nombre: newAthlete.nombre, sexo: newAthlete.sexo, disciplina: newAthlete.disciplina,
                 deporte: newAthlete.deporte, email: newAthlete.email, rol: 'atleta',
                 datos_entrenamiento: datosEntrenamiento,
-            }).eq('id', authData.user.id);
+            });
+            if (perfilError) throw perfilError;
 
             let msg = "¡Atleta creado! Contraseña temporal: ChangeMe2026!";
             if (newAthlete.crearPlanAI) {
@@ -451,7 +457,7 @@ export default function CoachDashboard({ coachName }) {
                                                 <option value="21k">Meta 21K</option>
                                                 <option value="42k">Meta 42K</option>
                                             </select>
-                                            <input placeholder="Tiempo meta (3:00)" value={newAthlete.tiempoMeta} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, tiempoMeta: e.target.value })} />
+                                            <input placeholder="Tiempo meta (min u h:mm)" value={newAthlete.tiempoMeta} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, tiempoMeta: e.target.value })} />
                                         </div>
                                         <div>
                                             <label className="text-[10px] text-gray-500 uppercase font-bold">Fecha de la carrera</label>
