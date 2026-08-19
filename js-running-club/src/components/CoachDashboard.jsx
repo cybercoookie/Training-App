@@ -246,13 +246,6 @@ export default function CoachDashboard({ coachName }) {
         e.preventDefault();
         setCreating(true);
         try {
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: newAthlete.email,
-                password: 'ChangeMe2026!',
-                options: { data: { nombre: newAthlete.nombre } }
-            });
-            if (authError) throw authError;
-
             const datosEntrenamiento = {
                 nivel: newAthlete.nivel,
                 corrida_mas_larga_mi: newAthlete.corridaMasLarga || null,
@@ -263,28 +256,40 @@ export default function CoachDashboard({ coachName }) {
                 fecha_carrera: newAthlete.fechaCarrera || null,
             };
 
-            const { error: perfilError } = await supabase.from('perfiles').upsert({
-                id: authData.user.id,
-                nombre: newAthlete.nombre, sexo: newAthlete.sexo, disciplina: newAthlete.disciplina,
-                deporte: newAthlete.deporte, email: newAthlete.email, rol: 'atleta',
-                datos_entrenamiento: datosEntrenamiento,
+            // Se crea vía edge function con service role: NO reemplaza la sesión
+            // del coach (a diferencia de auth.signUp en el cliente), lo que
+            // permite insertar el plan a continuación como coach.
+            const { data: fn, error: fnError } = await supabase.functions.invoke('admin-create-athlete', {
+                body: {
+                    email: newAthlete.email,
+                    password: 'ChangeMe2026!',
+                    nombre: newAthlete.nombre,
+                    sexo: newAthlete.sexo,
+                    disciplina: newAthlete.disciplina,
+                    deporte: newAthlete.deporte,
+                    datos_entrenamiento: datosEntrenamiento,
+                },
             });
-            if (perfilError) throw perfilError;
+            if (fnError) throw fnError;
+            if (fn?.error) throw new Error(fn.error);
+            const newId = fn.user_id;
 
             let msg = "¡Atleta creado! Contraseña temporal: ChangeMe2026!";
             if (newAthlete.crearPlanAI) {
                 const plan = generarPlanAI(newAthlete);
-                const rows = plan.map(w => ({ ...w, athlete_id: authData.user.id, is_completed: false }));
+                const rows = plan.map(w => ({ ...w, athlete_id: newId, is_completed: false }));
                 const { error: planError } = await supabase.from('athlete_program').insert(rows);
                 if (planError) throw planError;
                 msg += ` Plan AI generado: ${plan.length} entrenamientos en ${plan[plan.length - 1].week_number} semanas.`;
+            } else {
+                msg += " Sin plan — usa 'Generar Plan AI' en su tarjeta cuando quieras.";
             }
 
             alert(msg);
             setShowAddModal(false);
             setWizardStep(1);
             cargarAtletas();
-        } catch (error) { alert("Error: " + error.message); }
+        } catch (error) { alert("Error: " + (error.message || error)); }
         finally { setCreating(false); }
     }
 
