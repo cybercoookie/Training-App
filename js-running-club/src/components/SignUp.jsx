@@ -26,7 +26,8 @@ export default function SignUp({ onBack }) {
             });
             if (authError) throw authError;
 
-            await supabase.from('perfiles').update({
+            const { error: perfilError } = await supabase.from('perfiles').upsert({
+                id: authData.user.id,
                 nombre: form.nombre,
                 sexo: form.sexo,
                 disciplina: form.disciplina,
@@ -42,7 +43,8 @@ export default function SignUp({ onBack }) {
                     tiempo_meta: form.tiempoMeta || null,
                     fecha_carrera: form.fechaCarrera || null,
                 },
-            }).eq('id', authData.user.id);
+            });
+            if (perfilError) throw perfilError;
 
             // Avisar al coach del nuevo registro (aparece en su campana)
             await supabase.from('notificaciones_coach').insert([{
@@ -129,7 +131,7 @@ export default function SignUp({ onBack }) {
                                     <option value="21k">Meta 21K</option>
                                     <option value="42k">Meta 42K</option>
                                 </select>
-                                <input placeholder="Tiempo meta (3:00)" value={form.tiempoMeta} onChange={set('tiempoMeta')} className="bg-black border border-gray-800 rounded-xl py-3 px-4 text-sm" />
+                                <input placeholder="Tiempo meta (min u h:mm)" value={form.tiempoMeta} onChange={set('tiempoMeta')} className="bg-black border border-gray-800 rounded-xl py-3 px-4 text-sm" />
                             </div>
                             <div>
                                 <label className="text-[10px] text-gray-500 uppercase font-bold">Fecha de tu carrera (si ya la tienes)</label>

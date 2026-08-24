@@ -53,25 +53,35 @@ function generarPlanAI(datos) {
     const diasSemana = parseInt(datos.diasSemana) || 4;
     const currentLong = parseFloat(datos.corridaMasLarga) || 2;
 
-    // Ritmo meta a partir del tiempo objetivo (formato "3:00" hrs:min)
+    // Ritmo meta a partir del tiempo objetivo.
+    // Acepta "40" (minutos), "0:40" o "3:00" (horas:min). Un número solo = minutos.
     let paceMeta = null;
     if (datos.tiempoMeta) {
-        const [h, m] = datos.tiempoMeta.split(':').map(Number);
-        if (!isNaN(h)) paceMeta = fmtPace(((h * 60 + (m || 0)) * 60) / meta.dist);
+        const parts = datos.tiempoMeta.split(':').map(Number);
+        let totalMin = null;
+        if (parts.length === 1 && !isNaN(parts[0])) totalMin = parts[0];
+        else if (parts.length === 2 && !isNaN(parts[0])) totalMin = parts[0] * 60 + (parts[1] || 0);
+        if (totalMin && totalMin > 0) paceMeta = fmtPace((totalMin * 60) / meta.dist);
     }
 
-    // Semanas disponibles hasta la carrera (min 4, max 16)
+    // Arranca el próximo martes (o este martes si hoy es lunes/martes)
     const hoy = new Date();
     const inicio = new Date(hoy);
-    inicio.setDate(inicio.getDate() + ((2 - inicio.getDay() + 7) % 7 || 7)); // próximo martes
+    const diffMartes = (2 - inicio.getDay() + 7) % 7; // 0 si hoy es martes
+    inicio.setDate(inicio.getDate() + diffMartes);
+
+    // Longitud del plan: se ajusta a las semanas disponibles hasta la carrera.
+    // Sin fecha usamos 8 semanas por defecto; con fecha NO sobrepasamos la carrera.
     let totalSemanas = 8;
     if (datos.fechaCarrera) {
         const carrera = new Date(datos.fechaCarrera + 'T00:00:00');
-        totalSemanas = Math.max(4, Math.min(16, Math.floor((carrera - inicio) / (7 * 24 * 3600 * 1000)) + 1));
+        const semanas = Math.ceil((carrera - inicio) / (7 * 24 * 3600 * 1000));
+        totalSemanas = Math.max(1, Math.min(16, semanas));
     }
 
-    const taperSemanas = meta.dist >= 13 ? 2 : 1;
-    const buildSemanas = totalSemanas - taperSemanas;
+    // El taper solo aplica si hay semanas suficientes para permitirlo
+    const taperSemanas = totalSemanas >= 4 ? (meta.dist >= 13 ? 2 : 1) : 0;
+    const buildSemanas = Math.max(1, totalSemanas - taperSemanas);
 
     // Progresión del largo: de la corrida más larga actual hasta el máximo del plan
     const longInicial = Math.max(2, Math.min(currentLong, meta.longMax));
@@ -236,13 +246,6 @@ export default function CoachDashboard({ coachName }) {
         e.preventDefault();
         setCreating(true);
         try {
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: newAthlete.email,
-                password: 'ChangeMe2026!',
-                options: { data: { nombre: newAthlete.nombre } }
-            });
-            if (authError) throw authError;
-
             const datosEntrenamiento = {
                 nivel: newAthlete.nivel,
                 corrida_mas_larga_mi: newAthlete.corridaMasLarga || null,
@@ -253,26 +256,40 @@ export default function CoachDashboard({ coachName }) {
                 fecha_carrera: newAthlete.fechaCarrera || null,
             };
 
-            await supabase.from('perfiles').update({
-                nombre: newAthlete.nombre, sexo: newAthlete.sexo, disciplina: newAthlete.disciplina,
-                deporte: newAthlete.deporte, email: newAthlete.email, rol: 'atleta',
-                datos_entrenamiento: datosEntrenamiento,
-            }).eq('id', authData.user.id);
+            // Se crea vía edge function con service role: NO reemplaza la sesión
+            // del coach (a diferencia de auth.signUp en el cliente), lo que
+            // permite insertar el plan a continuación como coach.
+            const { data: fn, error: fnError } = await supabase.functions.invoke('admin-create-athlete', {
+                body: {
+                    email: newAthlete.email,
+                    password: 'ChangeMe2026!',
+                    nombre: newAthlete.nombre,
+                    sexo: newAthlete.sexo,
+                    disciplina: newAthlete.disciplina,
+                    deporte: newAthlete.deporte,
+                    datos_entrenamiento: datosEntrenamiento,
+                },
+            });
+            if (fnError) throw fnError;
+            if (fn?.error) throw new Error(fn.error);
+            const newId = fn.user_id;
 
             let msg = "¡Atleta creado! Contraseña temporal: ChangeMe2026!";
             if (newAthlete.crearPlanAI) {
                 const plan = generarPlanAI(newAthlete);
-                const rows = plan.map(w => ({ ...w, athlete_id: authData.user.id, is_completed: false }));
+                const rows = plan.map(w => ({ ...w, athlete_id: newId, is_completed: false }));
                 const { error: planError } = await supabase.from('athlete_program').insert(rows);
                 if (planError) throw planError;
                 msg += ` Plan AI generado: ${plan.length} entrenamientos en ${plan[plan.length - 1].week_number} semanas.`;
+            } else {
+                msg += " Sin plan — usa 'Generar Plan AI' en su tarjeta cuando quieras.";
             }
 
             alert(msg);
             setShowAddModal(false);
             setWizardStep(1);
             cargarAtletas();
-        } catch (error) { alert("Error: " + error.message); }
+        } catch (error) { alert("Error: " + (error.message || error)); }
         finally { setCreating(false); }
     }
 
@@ -451,7 +468,7 @@ export default function CoachDashboard({ coachName }) {
                                                 <option value="21k">Meta 21K</option>
                                                 <option value="42k">Meta 42K</option>
                                             </select>
-                                            <input placeholder="Tiempo meta (3:00)" value={newAthlete.tiempoMeta} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, tiempoMeta: e.target.value })} />
+                                            <input placeholder="Tiempo meta (min u h:mm)" value={newAthlete.tiempoMeta} className="bg-black border border-gray-800 rounded-xl p-3 text-sm" onChange={e => setNewAthlete({ ...newAthlete, tiempoMeta: e.target.value })} />
                                         </div>
                                         <div>
                                             <label className="text-[10px] text-gray-500 uppercase font-bold">Fecha de la carrera</label>
