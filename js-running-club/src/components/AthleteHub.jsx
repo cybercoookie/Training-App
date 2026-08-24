@@ -22,6 +22,89 @@ const FRASES_MOTIVACIONALES = [
     '"13.1 millas no se corren el día de la carrera. Se corren todos los días antes."',
 ];
 
+// --- Exportación a calendario (.ics) con recordatorios ---
+function icsEscape(text) {
+    return String(text || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/;/g, '\\;')
+        .replace(/,/g, '\\,')
+        .replace(/\r?\n/g, '\\n');
+}
+
+// Plega líneas largas a 75 octetos según RFC 5545
+function icsFold(line) {
+    if (line.length <= 75) return line;
+    const chunks = [];
+    let i = 0;
+    while (i < line.length) {
+        chunks.push((i === 0 ? '' : ' ') + line.slice(i, i + (i === 0 ? 75 : 74)));
+        i += (i === 0 ? 75 : 74);
+    }
+    return chunks.join('\r\n');
+}
+
+// Construye un archivo .ics con un evento de día completo por entrenamiento,
+// cada uno con una alarma (recordatorio) a la hora elegida el mismo día.
+function buildICS(workouts, reminderTime = '07:00') {
+    const [rh, rm] = reminderTime.split(':').map(Number);
+    const alarmMinutes = (rh || 0) * 60 + (rm || 0); // minutos desde medianoche
+    const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+    const lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//JS Running Club//Training Plan//ES',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'X-WR-CALNAME:JS Running Club — Mi Plan',
+    ];
+
+    const sorted = [...workouts].sort((a, b) => (a.date < b.date ? -1 : 1));
+    for (const w of sorted) {
+        const ymd = w.date.replace(/-/g, '');
+        const next = new Date(w.date + 'T00:00:00');
+        next.setDate(next.getDate() + 1);
+        const ymdEnd = next.toISOString().split('T')[0].replace(/-/g, '');
+
+        const emoji = w.workout_type === 'Strength' ? '💪' : '🏃';
+        const dist = w.distance_mi > 0 ? ` (${w.distance_mi} mi)` : '';
+        const summary = `${emoji} ${w.title}${dist}`;
+        // Alarma: RELATED=START desde medianoche → hora del recordatorio ese día
+        const trigger = `PT${alarmMinutes}M`;
+
+        lines.push(
+            'BEGIN:VEVENT',
+            icsFold(`UID:${w.id}@jsrunningclub`),
+            `DTSTAMP:${dtstamp}`,
+            `DTSTART;VALUE=DATE:${ymd}`,
+            `DTEND;VALUE=DATE:${ymdEnd}`,
+            icsFold(`SUMMARY:${icsEscape(summary)}`),
+            icsFold(`DESCRIPTION:${icsEscape(w.description)}`),
+            'BEGIN:VALARM',
+            'ACTION:DISPLAY',
+            icsFold(`DESCRIPTION:${icsEscape('Hoy: ' + summary)}`),
+            `TRIGGER;RELATED=START:${trigger}`,
+            'END:VALARM',
+            'END:VEVENT',
+        );
+    }
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n');
+}
+
+function descargarICS(workouts, reminderTime) {
+    const ics = buildICS(workouts, reminderTime);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'js-running-club-plan.ics';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
 // Genera el mensaje del splash a partir del progreso real del plan
 function generarMensajeDiario(workouts) {
     const today = new Date().toISOString().split('T')[0];
@@ -98,6 +181,8 @@ export default function AthleteHub({ userName }) {
 
     const [currentWeek, setCurrentWeek] = useState(1);
     const [workoutsByWeek, setWorkoutsByWeek] = useState({});
+    const [showCalModal, setShowCalModal] = useState(false);
+    const [reminderTime, setReminderTime] = useState('07:00');
 
     const [selectedWorkoutId, setSelectedWorkoutId] = useState('');
     const [formNotes, setFormNotes] = useState('');
@@ -302,6 +387,17 @@ export default function AthleteHub({ userName }) {
 
                     {activeTab === 'plan' && (
                         <div className="space-y-6">
+                            <button onClick={() => setShowCalModal(true)} className="w-full bg-gray-900 hover:bg-gray-800 border border-orange-500/30 rounded-2xl p-4 flex items-center justify-between transition active:scale-[0.99]">
+                                <div className="flex items-center gap-3">
+                                    <i className="fas fa-calendar-plus text-orange-500 text-lg"></i>
+                                    <div className="text-left">
+                                        <p className="text-sm font-black text-white">Añadir plan a mi calendario</p>
+                                        <p className="text-[10px] text-gray-500">Con recordatorio del entrenamiento del día</p>
+                                    </div>
+                                </div>
+                                <i className="fas fa-chevron-right text-gray-600"></i>
+                            </button>
+
                             <section className="bg-gray-900 p-6 rounded-3xl border border-gray-800 text-center shadow-lg">
                                 <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-4">Cronómetro JS</h2>
                                 <div className="text-5xl font-mono font-bold mb-4 text-white">{formatTime(seconds)}</div>
@@ -455,6 +551,24 @@ export default function AthleteHub({ userName }) {
                         <button onClick={() => setShowSplash(false)} className="w-full bg-orange-600 hover:bg-orange-500 p-4 rounded-xl font-black text-white text-sm uppercase tracking-wider active:scale-95 transition shadow-lg shadow-orange-600/30">
                             ¡A entrenar! <i className="fas fa-arrow-right ml-2"></i>
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {showCalModal && (
+                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border border-gray-700 rounded-3xl p-6 w-full max-w-sm relative shadow-2xl">
+                        <button onClick={() => setShowCalModal(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><i className="fas fa-times text-xl"></i></button>
+                        <h2 className="text-lg font-black text-white mb-1"><i className="fas fa-calendar-plus text-orange-500 mr-2"></i> Añadir a mi Calendario</h2>
+                        <p className="text-xs text-gray-400 mb-4">Descarga tu plan completo como archivo de calendario. Al abrirlo, tu teléfono lo agrega a Apple Calendar o Google Calendar, con un recordatorio automático cada día de entrenamiento.</p>
+
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Hora del recordatorio diario</label>
+                        <input type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)} className="w-full bg-black border border-gray-700 rounded-xl p-3 text-sm text-white focus:border-orange-500 outline-none mt-1 mb-4" />
+
+                        <button onClick={() => { descargarICS(Object.values(workoutsByWeek).flat(), reminderTime); setShowCalModal(false); }} className="w-full bg-orange-600 hover:bg-orange-500 p-4 rounded-xl font-black text-white text-sm uppercase tracking-wider active:scale-95 transition">
+                            <i className="fas fa-download mr-2"></i> Descargar calendario
+                        </button>
+                        <p className="text-[10px] text-gray-600 mt-3 text-center">iPhone: se abre en Calendario. Android: se abre en Google Calendar.</p>
                     </div>
                 </div>
             )}
