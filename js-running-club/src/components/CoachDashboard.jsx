@@ -7,6 +7,8 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineEleme
 
 const DAY_ORDER = { Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7 };
 const MAX_HR_DEFAULT = 190;
+const MOOD_EMOJI = { 1: '🤕', 2: '😣', 3: '😐', 4: '🙂', 5: '🔥' };
+const MOOD_LABEL = { 1: 'Muy mal', 2: 'Cansado', 3: 'Normal', 4: 'Bien', 5: 'Excelente' };
 
 // Convierte "13:45" a segundos por milla para comparar paces
 function paceToSeconds(pace) {
@@ -493,7 +495,15 @@ export default function CoachDashboard({ coachName }) {
                     <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-900 shrink-0">
                         <div>
                             <h2 className="text-2xl font-black text-orange-500 italic uppercase">{selectedAthlete.nombre}</h2>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase">Media Maratón · Meta 3:00 hrs · Ago 9</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase">{selectedAthlete.disciplina || 'Running'}</p>
+                            {selectedAthlete.estado_actual?.rating && (
+                                <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-base">{MOOD_EMOJI[selectedAthlete.estado_actual.rating] || '🙂'}</span>
+                                    <span className="text-[10px] text-blue-300 font-bold">Estado: {MOOD_LABEL[selectedAthlete.estado_actual.rating]}</span>
+                                    {selectedAthlete.estado_actual.updated_at && <span className="text-[9px] text-gray-600">{new Date(selectedAthlete.estado_actual.updated_at).toLocaleDateString()}</span>}
+                                    {selectedAthlete.estado_actual.nota && <span className="text-[9px] text-gray-500 italic truncate max-w-[120px]">"{selectedAthlete.estado_actual.nota}"</span>}
+                                </div>
+                            )}
                         </div>
                         <button onClick={() => setSelectedAthlete(null)} className="text-gray-400"><i className="fas fa-times text-xl"></i></button>
                     </div>
