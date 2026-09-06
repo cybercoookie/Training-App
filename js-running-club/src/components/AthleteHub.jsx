@@ -163,6 +163,76 @@ function generarMensajeDiario(workouts) {
     return { titulo, mensaje, frase, diasParaCarrera, pctCompletado, millasHechas, millasRestantes };
 }
 
+// --- "¿Cómo te sientes?" (estado corporal del atleta) ---
+const MOODS = [
+    { rating: 1, emoji: '🤕', label: 'Muy mal', grad: 'from-red-600 to-red-500', ring: 'ring-red-500' },
+    { rating: 2, emoji: '😣', label: 'Cansado', grad: 'from-orange-600 to-orange-500', ring: 'ring-orange-500' },
+    { rating: 3, emoji: '😐', label: 'Normal', grad: 'from-yellow-600 to-yellow-500', ring: 'ring-yellow-500' },
+    { rating: 4, emoji: '🙂', label: 'Bien', grad: 'from-green-600 to-green-500', ring: 'ring-green-500' },
+    { rating: 5, emoji: '🔥', label: 'Excelente', grad: 'from-orange-500 to-yellow-400', ring: 'ring-orange-400' },
+];
+const MOOD_TAGS = [
+    { key: 'molestia', label: '🤕 Molestia / dolor' },
+    { key: 'piernas', label: '🦵 Piernas cansadas' },
+    { key: 'sueno', label: '😴 Dormí poco' },
+    { key: 'fuerte', label: '💪 Me siento fuerte' },
+    { key: 'motivada', label: '😃 Motivado/a' },
+];
+
+// Ajusta (o restaura) los próximos entrenamientos según el estado.
+// No destructivo: guarda original_distance_mi para poder revertir.
+async function ajustarWorkoutsPorEstado(userId, rating, tags) {
+    const today = new Date().toISOString().split('T')[0];
+    const molestia = (tags || []).includes('molestia');
+    const efectivo = molestia ? 1 : rating;
+
+    const { data: futuros } = await supabase
+        .from('athlete_program').select('*')
+        .eq('athlete_id', userId).eq('is_completed', false)
+        .gte('date', today).order('date', { ascending: true });
+    if (!futuros || futuros.length === 0) return { changed: 0, mode: 'none' };
+
+    // Buen estado → restaurar entrenamientos previamente ajustados
+    if (efectivo >= 4) {
+        const ajustados = futuros.filter(w => w.auto_adjusted);
+        for (const w of ajustados) {
+            await supabase.from('athlete_program').update({
+                distance_mi: w.original_distance_mi ?? w.distance_mi,
+                original_distance_mi: null, auto_adjusted: false, ajuste_nota: null,
+            }).eq('id', w.id);
+        }
+        return { changed: ajustados.length, mode: 'restore' };
+    }
+
+    if (efectivo === 3) return { changed: 0, mode: 'none' };
+
+    // Estado bajo → suavizar los próximos N entrenamientos
+    const n = efectivo === 1 ? 3 : 2;
+    const factor = efectivo === 1 ? 0.5 : 0.75;
+    const nota = efectivo === 1
+        ? 'Ajustado por tu estado: baja mucho la intensidad, trota muy suave o descansa. Escucha a tu cuerpo.'
+        : 'Ajustado por tu estado: tómalo más suave hoy — reduce el ritmo y la distancia.';
+
+    let changed = 0;
+    for (const w of futuros.slice(0, n)) {
+        if (w.workout_type === 'Strength') {
+            await supabase.from('athlete_program').update({
+                auto_adjusted: true,
+                ajuste_nota: efectivo === 1 ? 'Solo movilidad ligera hoy, o descansa.' : nota,
+            }).eq('id', w.id);
+            changed++;
+            continue;
+        }
+        const orig = w.original_distance_mi ?? w.distance_mi;
+        const nueva = Math.max(1, Math.round(parseFloat(orig) * factor * 2) / 2);
+        await supabase.from('athlete_program').update({
+            original_distance_mi: orig, distance_mi: nueva, auto_adjusted: true, ajuste_nota: nota,
+        }).eq('id', w.id);
+        changed++;
+    }
+    return { changed, mode: 'reduce' };
+}
+
 function getWeekForToday(workoutsByWeek) {
     const today = new Date().toISOString().split('T')[0];
     let bestWeek = 1;
@@ -199,6 +269,15 @@ export default function AthleteHub({ userName }) {
     const [splashData, setSplashData] = useState(null);
     const [showSplash, setShowSplash] = useState(false);
 
+    const [userId, setUserId] = useState(null);
+    const [estado, setEstado] = useState(null);
+    const [showMood, setShowMood] = useState(false);
+    const [moodRating, setMoodRating] = useState(null);
+    const [moodTags, setMoodTags] = useState([]);
+    const [moodNote, setMoodNote] = useState('');
+    const [moodSaving, setMoodSaving] = useState(false);
+    const [moodResult, setMoodResult] = useState(null);
+
     const [seconds, setSeconds] = useState(0);
     const [isRunning, setIsRunning] = useState(false);
     const timerRef = useRef(null);
@@ -219,6 +298,9 @@ export default function AthleteHub({ userName }) {
         setIsSyncing(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
+            setUserId(user.id);
+            supabase.from('perfiles').select('estado_actual').eq('id', user.id).single()
+                .then(({ data }) => { if (data) setEstado(data.estado_actual); });
             const { data: workouts, error } = await supabase
                 .from('athlete_program')
                 .select('*')
@@ -299,6 +381,40 @@ export default function AthleteHub({ userName }) {
         finally { setSaving(false); }
     }
 
+    function toggleMoodTag(key) {
+        setMoodTags(prev => prev.includes(key) ? prev.filter(t => t !== key) : [...prev, key]);
+    }
+
+    function abrirMood() {
+        setMoodRating(estado?.rating || null);
+        setMoodTags(estado?.tags || []);
+        setMoodNote('');
+        setMoodResult(null);
+        setShowMood(true);
+    }
+
+    async function guardarEstado() {
+        if (!moodRating) { alert('Elige cómo te sientes.'); return; }
+        if (!userId) return;
+        setMoodSaving(true);
+        try {
+            const estadoObj = { rating: moodRating, tags: moodTags, nota: moodNote || null, updated_at: new Date().toISOString() };
+            await supabase.from('perfiles').update({ estado_actual: estadoObj }).eq('id', userId);
+            await supabase.from('estado_historial').insert([{ athlete_id: userId, rating: moodRating, tags: moodTags, nota: moodNote || null }]);
+            const res = await ajustarWorkoutsPorEstado(userId, moodRating, moodTags);
+            setEstado(estadoObj);
+            await cargarPlan();
+
+            const mood = MOODS.find(m => m.rating === moodRating);
+            let msg;
+            if (res.mode === 'reduce') msg = `Gracias por avisar. Suavizamos tus próximos ${res.changed} entrenamiento(s) para que te recuperes bien. 💙`;
+            else if (res.mode === 'restore') msg = res.changed > 0 ? `¡Genial! Restauramos ${res.changed} entrenamiento(s) a su plan original. ¡A darlo todo! 🔥` : '¡Nos encanta esa energía! Sigue así. 🔥';
+            else msg = '¡Registrado! Sigue escuchando a tu cuerpo. 💪';
+            setMoodResult({ emoji: mood?.emoji, msg });
+        } catch (e) { alert('Error al guardar tu estado.'); }
+        finally { setMoodSaving(false); }
+    }
+
     function sendToCoachWhatsApp() {
         if (!selectedWorkoutId) { alert("Por favor selecciona un entrenamiento."); return; }
         const workout = workoutsByWeek[currentWeek]?.find(r => r.id.toString() === selectedWorkoutId.toString());
@@ -363,6 +479,9 @@ export default function AthleteHub({ userName }) {
                     </div>
                 </div>
                 <div className="flex gap-3">
+                    <button onClick={abrirMood} className="bg-gray-900 w-9 h-9 rounded-lg border border-gray-800 hover:border-orange-500 transition-colors flex items-center justify-center text-lg" title="¿Cómo te sientes?">
+                        {estado?.rating ? (MOODS.find(m => m.rating === estado.rating)?.emoji || '🙂') : '🙂'}
+                    </button>
                     <button onClick={cargarPlan} className="bg-gray-900 p-2 rounded-lg border border-gray-800 text-blue-400 hover:text-blue-300 transition-colors" title="Sincronizar datos">
                         <i className={`fas fa-sync-alt ${isSyncing ? 'fa-spin' : ''}`}></i>
                     </button>
@@ -443,14 +562,24 @@ export default function AthleteHub({ userName }) {
                                                     <span className="text-[10px] text-orange-500 font-black italic uppercase">{workout.day_of_week}</span>
                                                     <span className="text-[10px] text-gray-600">{workout.date}</span>
                                                     {workout.distance_mi > 0 && (
-                                                        <span className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">{workout.distance_mi} mi</span>
+                                                        <span className="text-[10px] bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">
+                                                            {workout.auto_adjusted && workout.original_distance_mi ? <span className="line-through text-gray-600 mr-1">{workout.original_distance_mi}</span> : null}
+                                                            {workout.distance_mi} mi
+                                                        </span>
                                                     )}
+                                                    {workout.auto_adjusted && <span className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">🔧 Ajustado</span>}
                                                 </div>
                                                 <h3 className="text-lg font-black text-white">{workout.title}</h3>
                                                 <p className="text-xs text-gray-400 mt-1">{workout.description}</p>
                                             </div>
                                             <input type="checkbox" checked={workout.is_completed} onChange={(e) => toggleTask(workout.id, e.target.checked)} className="w-6 h-6 rounded-full text-green-500 bg-black border-gray-700 cursor-pointer accent-orange-500 mt-1 shrink-0"/>
                                         </div>
+                                        {workout.ajuste_nota && (
+                                            <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                                                <p className="text-[10px] font-bold text-blue-300 uppercase mb-1"><i className="fas fa-heart-pulse"></i> Ajuste por tu estado:</p>
+                                                <p className="text-xs text-blue-100 whitespace-pre-wrap">{workout.ajuste_nota}</p>
+                                            </div>
+                                        )}
                                         {workout.coach_feedback && workout.coach_feedback.trim() !== '' && (
                                             <div className="mt-3 p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl">
                                                 <p className="text-[10px] font-bold text-orange-400 uppercase mb-1"><i className="fas fa-bullhorn"></i> Nota del Coach:</p>
@@ -551,6 +680,54 @@ export default function AthleteHub({ userName }) {
                         <button onClick={() => setShowSplash(false)} className="w-full bg-orange-600 hover:bg-orange-500 p-4 rounded-xl font-black text-white text-sm uppercase tracking-wider active:scale-95 transition shadow-lg shadow-orange-600/30">
                             ¡A entrenar! <i className="fas fa-arrow-right ml-2"></i>
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {showMood && (
+                <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-gradient-to-b from-gray-900 to-black border border-gray-700 rounded-3xl p-6 w-full max-w-sm relative shadow-2xl">
+                        <button onClick={() => setShowMood(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"><i className="fas fa-times text-xl"></i></button>
+
+                        {moodResult ? (
+                            <div className="text-center py-6">
+                                <div className="text-6xl mb-4 animate-bounce">{moodResult.emoji}</div>
+                                <p className="text-sm text-gray-200 mb-6 leading-relaxed">{moodResult.msg}</p>
+                                <button onClick={() => setShowMood(false)} className="w-full bg-orange-600 hover:bg-orange-500 p-4 rounded-xl font-black text-white text-sm uppercase tracking-wider active:scale-95 transition">¡Listo!</button>
+                            </div>
+                        ) : (
+                            <>
+                                <h2 className="text-xl font-black text-white mb-1 text-center">¿Cómo te sientes hoy?</h2>
+                                <p className="text-xs text-gray-400 mb-5 text-center">Tu estado ajusta tu plan. ¡Sé honesto/a con tu cuerpo!</p>
+
+                                <div className="flex justify-between gap-1 mb-5">
+                                    {MOODS.map(m => (
+                                        <button key={m.rating} onClick={() => setMoodRating(m.rating)}
+                                            className={`flex-1 flex flex-col items-center py-3 rounded-2xl border transition-all ${moodRating === m.rating ? `bg-gradient-to-b ${m.grad} border-transparent scale-110 ring-2 ${m.ring} ring-offset-2 ring-offset-black shadow-lg` : 'bg-gray-900 border-gray-800 opacity-60 hover:opacity-100'}`}>
+                                            <span className="text-2xl">{m.emoji}</span>
+                                            <span className={`text-[8px] font-black uppercase mt-1 ${moodRating === m.rating ? 'text-white' : 'text-gray-500'}`}>{m.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">¿Algo más? (opcional)</p>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    {MOOD_TAGS.map(t => (
+                                        <button key={t.key} onClick={() => toggleMoodTag(t.key)}
+                                            className={`text-[11px] font-bold px-3 py-1.5 rounded-full border transition ${moodTags.includes(t.key) ? 'bg-orange-500/20 border-orange-500 text-orange-300' : 'bg-gray-900 border-gray-800 text-gray-400'}`}>
+                                            {t.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <textarea value={moodNote} onChange={e => setMoodNote(e.target.value)} placeholder="Cuéntale a tu coach cómo va todo..." className="w-full bg-black border border-gray-800 rounded-2xl p-3 text-sm text-white h-16 focus:border-orange-500 outline-none resize-none mb-4"></textarea>
+
+                                <button onClick={guardarEstado} disabled={moodSaving || !moodRating} className="w-full bg-orange-600 hover:bg-orange-500 p-4 rounded-xl font-black text-white text-sm uppercase tracking-wider active:scale-95 transition disabled:opacity-40">
+                                    {moodSaving ? 'Guardando...' : 'Registrar mi estado'}
+                                </button>
+                                {estado?.updated_at && <p className="text-[10px] text-gray-600 mt-3 text-center">Último registro: {new Date(estado.updated_at).toLocaleDateString()}</p>}
+                            </>
+                        )}
                     </div>
                 </div>
             )}
